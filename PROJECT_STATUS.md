@@ -1,6 +1,6 @@
 # TrimsSilver — Project Status & Handoff
 
-Written 2026-08-17, updated same day after implementing the ingest endpoints and then the Discord OAuth client flow. Read this first in a new session — it's the durable record; a fresh Claude Code session on a different machine has no memory of this conversation.
+Written 2026-08-17, updated same day after implementing the ingest endpoints, then the Discord OAuth client flow, then confirming the whole thing works live in production. Read this first in a new session — it's the durable record; a fresh Claude Code session on a different machine has no memory of this conversation.
 
 ## What TrimsSilver is
 
@@ -25,7 +25,9 @@ A fork of JPCodeCraft's "AFM Data Client" (`AlbionDataAvalonia`, an Albion Onlin
 - Removed the client's old behavior of downloading `AppSettings` from AFM's CDN at runtime (`SettingsManager.cs`) — it would have silently broken with the renamed settings fields, and no longer made sense for an independent fork anyway.
 - **Server deployed live** via Docker/Portainer stack on the user's own server (see Deployment section below for the fixes this took).
 - **Prisma schema + ingest endpoints for all 7 private upload types implemented, tested end-to-end against a local dev DB, and deployed** (issue #1 scope). See "Private data model" below.
-- **Client issue #3 done: `AuthService.cs` now does Discord OAuth against TrimsSilver-Server instead of Google/Firebase.** Client build verified with 0 new errors/warnings. See "Client auth flow" below — this is the biggest remaining piece before the real client can talk to the real server end-to-end, and it's now code-complete on both sides (only issue #2's URL flip is left).
+- **Client issue #3 done: `AuthService.cs` now does Discord OAuth against TrimsSilver-Server instead of Google/Firebase.** Client build verified with 0 new errors/warnings.
+- **Client issue #2 done: `TrimsSilverIngestApiBase` points at the live server.**
+- **✅ Full end-to-end chain confirmed working live in production**, with a real Discord account and the real game running — not just curl tests. See "Confirmed working end-to-end" below.
 
 ### Deployment (Docker/Portainer) — fixes applied this session
 Two things broke the first Portainer stack deploy, both now fixed and committed:
@@ -60,9 +62,21 @@ Because tokens don't expire, the whole refresh-scheduling machinery is gone: `En
 
 `FirebaseAuthResponse` (the model) **keeps its name and shape** on purpose — every consumer (`MainViewModel`, `SettingsViewModel`, `LegendaryViewModel`, `PortfolioUploadService`, `LegendarySaleService`, `ItemEstimatedMarketValueBackendLoader`, `TrimsSilverUploader`) binds to `CurrentFirebaseUser`/`FirebaseUserChanged`/`FirebaseUserId`/`.IdToken`/`.LocalId` and none of that changed, so **none of those 8 files needed touching**. Renaming `FirebaseAuthResponse` itself is deferred alongside the other leftover AFM/Firebase-branded UI strings already noted below.
 
-Settings changes in `AppSettings.cs`/`DefaultAppSettings.json`: `TrimsSilverAuthClientId` (Discord client id) is **gone** — the client never talks to Discord directly anymore, only to our own server. `TrimsSilverAuthApiUrl` is replaced by `TrimsSilverAuthUrl`, already set to the live `https://trimssilver.trimards-island.org/cli-auth`. `TrimsSilverAuthRedirectUri` is unchanged (`http://localhost:5000/`).
+Settings changes in `AppSettings.cs`/`DefaultAppSettings.json`: `TrimsSilverAuthClientId` (Discord client id) is **gone** — the client never talks to Discord directly anymore, only to our own server. `TrimsSilverAuthApiUrl` is replaced by `TrimsSilverAuthUrl`, already set to the live `https://trimssilver.trimards-island.org/cli-auth`. `TrimsSilverAuthRedirectUri` is unchanged (`http://localhost:5000/`). `TrimsSilverIngestApiBase` is now `https://trimssilver.trimards-island.org/api/` — **trailing slash is load-bearing**, not cosmetic: `TrimsSilverUploader.cs` combines it with relative paths via `new Uri(base, relative)`, and without the trailing slash `Uri` (like any RFC 3986 resolver) drops the base's last path segment, silently sending every request to the domain root instead of `/api/...`. Caught and fixed in commit `eadc1ee` before it shipped.
 
-**Not yet end-to-end tested with a real Discord account or a running Avalonia client** (no GUI/browser available in the session that built this) — server-side pieces (`/cli-auth`'s redirect-uri validation, `/api/me`) were curl-tested; client-side changes were only verified to compile (`dotnet build`, 0 errors). `TrimsSilverIngestApiBase` still points at the old AFM host, so `GET {base}/me` will 404 until issue #2 flips it — that's the last piece before a real end-to-end test is even possible.
+### Confirmed working end-to-end (2026-08-17, live production)
+Ran the client from source (`dotnet run --project AlbionDataAvalonia.Desktop`) to show how to test it, and the user signed in for real with their own Discord account while playing Albion Online. Server logs and client logs both confirm the full chain worked, live, against production — not a curl simulation:
+
+```
+21:51:00 Browser opened for Discord sign-in.
+21:51:02 Received token from the auth redirect.
+21:51:02 User signed in: re***************fr
+21:51:27 Successfully sent 48 item estimated market values to AFM EMV endpoint.
+21:51:37 Successfully sent global multiplier 1.156 for server 3 to AFM global multiplier endpoint.
+21:51:38 Successfully sent 457 achievements for character Rabhynoide on server 3 to AFM achievements endpoint.
+```
+
+That's `/cli-auth` (Discord sign-in + consent + token mint) and three different ingest routes (`itemEstimatedMarketValues`, `be/globalMultiplier`, `be/achievements`) all round-tripping real data into production Postgres, driven entirely by the app's normal live-gameplay upload paths — no manual testing scaffolding involved. `flipperOrders`, `playercount`, `be/festivities`, and `privateOrderShares` weren't separately confirmed live this way (no matching gameplay event happened during the session) but share the same auth path and were already curl-verified against a local dev DB.
 
 ### Ingest endpoints (exact same relative paths as the old AFM ones on purpose)
 So that client issue #2 only needs a settings change (`TrimsSilverIngestApiBase` → `https://trimssilver.trimards-island.org/api`), not a client code change:
@@ -80,7 +94,7 @@ So that client issue #2 only needs a settings change (`TrimsSilverIngestApiBase`
 All tested end-to-end against a local dev DB with curl (auth rejection, successful writes, and upsert idempotency all verified working).
 
 ### Deliberately not done yet (by design, not forgotten)
-- Client UI text/log strings that still literally describe the **live** AFM backend (legendary item marketplace, "sign in to AFM" prompts, EMV/achievements upload messages) — relabeling those to "TrimsSilver" before the backend actually exists would be misleading, since the client still genuinely uploads there today. Fix once the client points at the new backend (see Next steps).
+- Client UI text/log strings that still literally describe the AFM backend (legendary item marketplace, EMV/achievements upload messages, log lines like "Successfully sent ... to AFM EMV endpoint" seen in the confirmation above) — was deliberately left alone while the client genuinely still uploaded there. **Now unblocked**, since the client points at the new backend as of this session (see Next steps).
 - README screenshots/full content pass and new icon/logo artwork — design work, not code, out of scope for the rebrand pass.
 
 ### Key architecture decision (2026-08-17)
@@ -95,11 +109,11 @@ Server (`Rabhynoide/TrimsSilver-Server`):
 
 Client (`Rabhynoide/TrimsSilver-Client`):
 - #1 — Rebranding AFM → TrimsSilver — **closed**, done
-- #2 — Pointer le client vers TrimsSilver-Server — **implemented this session** (commit `eadc1ee`): `TrimsSilverIngestApiBase` now `https://trimssilver.trimards-island.org/api/` (trailing slash required, see commit message — `Uri` combining drops the last path segment without it). Not yet closed on GitHub.
-- #3 — Remplacer l'auth Google/Firebase par Discord OAuth dans `AuthService.cs` — **implemented this session** (commit `dcbc19c`), not yet closed on GitHub.
+- #2 — Pointer le client vers TrimsSilver-Server — **implemented and confirmed working live** (commit `eadc1ee`). Not yet closed on GitHub.
+- #3 — Remplacer l'auth Google/Firebase par Discord OAuth dans `AuthService.cs` — **implemented and confirmed working live** (commit `dcbc19c`). Not yet closed on GitHub.
 - #4 — Reset du versioning client à 0.x
 
-**Both #2 and #3 are code-complete and pushed, but not yet tested end-to-end with a real Discord account and a running client** — no browser/GUI available in the session that built this. See "How to test the client/server link" below for the procedure to run on a real machine.
+**#2 and #3 are done and verified with a real Discord account against production** — see "Confirmed working end-to-end" above. Closing them on GitHub itself wasn't done from this session.
 
 ## Environment gotchas hit on the original dev machine
 
@@ -143,7 +157,9 @@ Two levels: a fast server-only check (no client build, no Discord account needed
 
 ## Next steps, in the order they were being tackled
 
-1. **Client issue #2 (reduced scope), now the only blocker for a real end-to-end test**: point `TrimsSilverIngestApiBase` at `https://trimssilver.trimards-island.org/api` in `DefaultAppSettings.json` — no server-side path changes needed, the 7 ingest routes + `/me` already match/extend the old AFM relative paths exactly. Once flipped, do an actual live test: run the built client, sign in through the real Discord flow, confirm a market-order upload round-trips into Postgres.
-2. `PrivateOrderShares` identifier resolution (matching a shared value like a Discord tag to a real TrimsSilver account) — currently unimplemented, everything comes back `resolved: false`.
-3. A dashboard page to list/revoke `ApiToken`s (lost/stolen device scenario currently has no UI, only raw DB access).
-4. Later, lower priority: an AODP public-data reader/cache service on the server (per the architecture decision above) — not blocking anything else.
+1. `PrivateOrderShares` identifier resolution (matching a shared value like a Discord tag to a real TrimsSilver account) — currently unimplemented, everything comes back `resolved: false`.
+2. A dashboard page to list/revoke `ApiToken`s (lost/stolen device scenario currently has no UI, only raw DB access).
+3. `flipperOrders`, `playercount`, and `be/festivities` haven't been seen working live yet (just not exercised by gameplay during the test session) — worth a quick real-world confirmation next time the client runs, though there's no reason to expect them to behave differently from the three routes already confirmed.
+4. Close out client issues #2 and #3 on GitHub now that they're verified.
+5. Client UI text/log strings still describing the old AFM backend (see "Deliberately not done yet" above) — now unblocked since the client actually points at the new backend.
+6. Later, lower priority: an AODP public-data reader/cache service on the server (per the architecture decision above) — not blocking anything else.
