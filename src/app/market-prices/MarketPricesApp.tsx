@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ItemPicker from "./ItemPicker";
 import PriceGrid from "./PriceGrid";
@@ -53,8 +53,8 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
     }
   }
 
-  async function fetchPrices() {
-    if (selectedItems.length === 0) {
+  async function doFetchPrices(items: SelectedItem[], cfg: PriceCheckerConfig) {
+    if (items.length === 0) {
       setPrices([]);
       return;
     }
@@ -62,13 +62,13 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
     setPricesError(null);
     try {
       const params = new URLSearchParams({
-        items: selectedItems.map(itemId).join(","),
-        locations: config.cities.join(","),
+        items: items.map(itemId).join(","),
+        locations: cfg.cities.join(","),
         qualities: QUALITY_LEVELS.join(","),
-        region: config.region,
+        region: cfg.region,
       });
-      if (config.showAverages) {
-        params.set("averageDays", String(config.averageDays));
+      if (cfg.showAverages) {
+        params.set("averageDays", String(cfg.averageDays));
       }
       const res = await fetch(`/api/market/prices?${params.toString()}`);
       const data = await res.json();
@@ -85,6 +85,22 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
       setPricesLoading(false);
     }
   }
+
+  function fetchPrices() {
+    return doFetchPrices(selectedItems, config);
+  }
+
+  // First time the user selects anything, load prices automatically so the
+  // grid isn't just empty dashes; after that it's manual via Refresh Prices,
+  // so picking more items doesn't spam requests. A ref (not state) tracks
+  // whether this already fired, since it shouldn't itself trigger a render.
+  const hasAutoFetchedRef = useRef(false);
+  useEffect(() => {
+    if (hasAutoFetchedRef.current || selectedItems.length === 0) return;
+    hasAutoFetchedRef.current = true;
+    doFetchPrices(selectedItems, config);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedItems]);
 
   function reset() {
     setConfig(defaultConfig());

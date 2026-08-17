@@ -1,8 +1,15 @@
+// Equipment addresses enchanted variants as "UNIQUENAME@N" (a nested variant of
+// the same base item); resources address them as "UNIQUENAME_LEVELN" (each
+// level is its own standalone item in the game data). See
+// scripts/build-item-catalog.mjs for how this is determined per item.
+export type EnchantSuffix = "@" | "_LEVEL";
+
 export type CatalogItem = {
   uniqueName: string;
   name: string;
   tier: number;
   maxEnchant: number;
+  enchantSuffix: EnchantSuffix;
   shopCategory: string;
   shopSubCategory1: string | null;
 };
@@ -12,6 +19,7 @@ export type SelectedItem = {
   name: string;
   tier: number;
   enchant: number;
+  enchantSuffix: EnchantSuffix;
 };
 
 export type PriceRow = {
@@ -74,7 +82,7 @@ export const QUALITY_LABELS: Record<number, string> = {
 };
 
 export function itemId(item: SelectedItem): string {
-  return item.enchant > 0 ? `${item.uniqueName}@${item.enchant}` : item.uniqueName;
+  return item.enchant > 0 ? `${item.uniqueName}${item.enchantSuffix}${item.enchant}` : item.uniqueName;
 }
 
 export function selectedItemKey(item: SelectedItem): string {

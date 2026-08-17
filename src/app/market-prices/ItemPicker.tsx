@@ -14,6 +14,21 @@ function toggle<T>(set: T[], value: T): T[] {
 
 type Variant = { catalogItem: CatalogItem; enchant: number };
 
+function variantToSelectedItem(v: Variant): SelectedItem {
+  return {
+    uniqueName: v.catalogItem.uniqueName,
+    name: v.catalogItem.name,
+    tier: v.catalogItem.tier,
+    enchant: v.enchant,
+    enchantSuffix: v.catalogItem.enchantSuffix,
+  };
+}
+
+function variantIconUrl(v: Variant): string {
+  const suffix = v.enchant > 0 ? `${v.catalogItem.enchantSuffix}${v.enchant}` : "";
+  return `https://render.albiononline.com/v1/item/${v.catalogItem.uniqueName}${suffix}.png`;
+}
+
 export default function ItemPicker({
   catalog,
   selectedItems,
@@ -58,12 +73,7 @@ export default function ItemPicker({
   const selectedIds = useMemo(() => new Set(selectedItems.map(itemId)), [selectedItems]);
 
   function addVariant(v: Variant) {
-    const selected: SelectedItem = {
-      uniqueName: v.catalogItem.uniqueName,
-      name: v.catalogItem.name,
-      tier: v.catalogItem.tier,
-      enchant: v.enchant,
-    };
+    const selected = variantToSelectedItem(v);
     if (selectedIds.has(itemId(selected))) return;
     if (selectedItems.length >= MAX_SELECTED_ITEMS) return;
     onChange([...selectedItems, selected]);
@@ -76,12 +86,7 @@ export default function ItemPicker({
   function addFiltered() {
     const toAdd: SelectedItem[] = [];
     for (const v of filteredVariants) {
-      const candidate: SelectedItem = {
-        uniqueName: v.catalogItem.uniqueName,
-        name: v.catalogItem.name,
-        tier: v.catalogItem.tier,
-        enchant: v.enchant,
-      };
+      const candidate = variantToSelectedItem(v);
       const id = itemId(candidate);
       if (selectedIds.has(id) || toAdd.some((t) => itemId(t) === id)) continue;
       toAdd.push(candidate);
@@ -178,10 +183,8 @@ export default function ItemPicker({
       {searchResults.length > 0 && (
         <ul className="max-h-64 overflow-y-auto rounded border border-neutral-700 divide-y divide-neutral-800">
           {searchResults.map((v) => {
-            const id = `${v.catalogItem.uniqueName}@${v.enchant}`;
-            const alreadySelected = selectedIds.has(
-              v.enchant > 0 ? `${v.catalogItem.uniqueName}@${v.enchant}` : v.catalogItem.uniqueName,
-            );
+            const id = itemId(variantToSelectedItem(v));
+            const alreadySelected = selectedIds.has(id);
             return (
               <li key={id}>
                 <button
@@ -191,11 +194,7 @@ export default function ItemPicker({
                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-neutral-800 disabled:opacity-40"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`https://render.albiononline.com/v1/item/${v.catalogItem.uniqueName}${v.enchant > 0 ? `@${v.enchant}` : ""}.png`}
-                    alt=""
-                    className="h-8 w-8"
-                  />
+                  <img src={variantIconUrl(v)} alt="" className="h-8 w-8" />
                   <span>
                     {v.catalogItem.name} [{v.catalogItem.tier}.{v.enchant}]
                   </span>
