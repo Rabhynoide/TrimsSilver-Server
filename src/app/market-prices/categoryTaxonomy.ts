@@ -87,6 +87,10 @@ export function subCategoryLabel(item: CatalogItem): string {
 const TIER_RANK_PREFIX =
   /^(Beginner's|Novice's|Journeyman's|Adept's|Expert's|Master's|Grandmaster's|Elder's)\s+/;
 
+export function hasTierRankPrefix(item: CatalogItem): boolean {
+  return TIER_RANK_PREFIX.test(item.name);
+}
+
 export function lineNameOf(item: CatalogItem): string {
   return item.name.replace(TIER_RANK_PREFIX, "");
 }

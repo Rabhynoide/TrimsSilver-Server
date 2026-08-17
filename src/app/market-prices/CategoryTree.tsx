@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { buildCategoryTree, lineNameOf } from "./categoryTaxonomy";
+import { buildCategoryTree, hasTierRankPrefix, lineNameOf } from "./categoryTaxonomy";
 import type { CatalogItem } from "./types";
 
 function selectedCount(items: CatalogItem[], selected: Set<string>): number {
@@ -10,13 +10,36 @@ function selectedCount(items: CatalogItem[], selected: Set<string>): number {
 
 type Line = { label: string; items: CatalogItem[] };
 
-function groupByLine(items: CatalogItem[]): Line[] {
+// Gear (weapons, armor, artifacts, ...) names carry a tier-rank prefix
+// ("Adept's Broadsword"), so grouping by the stripped name collapses tiers of
+// the same weapon/armor line together. Plain items (resources, farmables, ...)
+// don't have that prefix — but when a subcategory's plain items each occupy a
+// distinct tier (one item per tier, e.g. Ore: Copper/Tin/Iron/.../Adamantium),
+// they're really the same "type" across tiers too, just named per-tier instead
+// of per-rank, so they're merged into one line named after the subcategory.
+// Subcategories with several plain items sharing a tier (e.g. Furniture, where
+// dozens of distinct decorations all sit at T1) are left as individual lines —
+// there's no single "type" to collapse them into.
+function groupByLine(items: CatalogItem[], subCategoryLabel: string): Line[] {
+  const prefixed = items.filter(hasTierRankPrefix);
+  const plain = items.filter((item) => !hasTierRankPrefix(item));
+
   const byLine = new Map<string, CatalogItem[]>();
-  for (const item of items) {
+  for (const item of prefixed) {
     const label = lineNameOf(item);
     if (!byLine.has(label)) byLine.set(label, []);
     byLine.get(label)!.push(item);
   }
+
+  const isTierProgression = plain.length > 1 && new Set(plain.map((i) => i.tier)).size === plain.length;
+  if (isTierProgression) {
+    byLine.set(subCategoryLabel, plain);
+  } else {
+    for (const item of plain) {
+      byLine.set(item.name, [item]);
+    }
+  }
+
   return [...byLine.entries()]
     .map(([label, lineItems]) => ({ label, items: lineItems }))
     .sort((a, b) => a.label.localeCompare(b.label));
@@ -76,7 +99,7 @@ export default function CategoryTree({
   const tree = useMemo(() => buildCategoryTree(catalog), [catalog]);
   const topNode = openTop ? tree.get(openTop) : undefined;
   const subNode = topNode && openSub ? topNode.children.get(openSub) : undefined;
-  const lines = subNode ? groupByLine(subNode.items) : [];
+  const lines = subNode ? groupByLine(subNode.items, subNode.label) : [];
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
