@@ -27,6 +27,7 @@ export type PriceRow = {
   buyPriceMax: number;
   buyPriceMaxDate: string;
   avgPrice: number | null;
+  avgAmount: number | null;
 };
 
 export type AodpRegion = "Americas" | "Asia" | "Europe";

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchAveragePrices, fetchCurrentPrices, isAodpRegion, priceKey } from "@/lib/aodp";
+import { AverageEntry, fetchAveragePrices, fetchCurrentPrices, isAodpRegion, priceKey } from "@/lib/aodp";
 
 const MAX_ITEMS = 100;
 
@@ -38,27 +38,34 @@ export async function GET(request: NextRequest) {
       fetchCurrentPrices(region, items, locations, qualities),
       averageDays && averageDays > 0
         ? fetchAveragePrices(region, items, locations, qualities, averageDays)
-        : Promise.resolve(new Map<string, number>()),
+        : Promise.resolve(new Map<string, AverageEntry>()),
     ]);
 
-    const rows = current.map((row) => ({
-      itemId: row.item_id,
-      city: row.city,
-      quality: row.quality,
-      sellPriceMin: row.sell_price_min,
-      sellPriceMinDate: row.sell_price_min_date,
-      sellPriceMax: row.sell_price_max,
-      sellPriceMaxDate: row.sell_price_max_date,
-      buyPriceMin: row.buy_price_min,
-      buyPriceMinDate: row.buy_price_min_date,
-      buyPriceMax: row.buy_price_max,
-      buyPriceMaxDate: row.buy_price_max_date,
-      avgPrice: averages.get(priceKey(row.item_id, row.city, row.quality)) ?? null,
-    }));
+    const rows = current.map((row) => {
+      const average = averages.get(priceKey(row.item_id, row.city, row.quality));
+      return {
+        itemId: row.item_id,
+        city: row.city,
+        quality: row.quality,
+        sellPriceMin: row.sell_price_min,
+        sellPriceMinDate: row.sell_price_min_date,
+        sellPriceMax: row.sell_price_max,
+        sellPriceMaxDate: row.sell_price_max_date,
+        buyPriceMin: row.buy_price_min,
+        buyPriceMinDate: row.buy_price_min_date,
+        buyPriceMax: row.buy_price_max,
+        buyPriceMaxDate: row.buy_price_max_date,
+        avgPrice: average?.avgPrice ?? null,
+        avgAmount: average?.avgAmount ?? null,
+      };
+    });
 
     return NextResponse.json({ prices: rows });
   } catch (err) {
     console.error("Market prices proxy failed", err);
-    return NextResponse.json({ error: "Failed to fetch prices from AODP" }, { status: 502 });
+    return NextResponse.json(
+      { error: "Failed to fetch prices from AODP", detail: err instanceof Error ? err.message : String(err) },
+      { status: 502 },
+    );
   }
 }

@@ -23,6 +23,7 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
   const [prices, setPrices] = useState<PriceRow[]>([]);
   const [pricesLoading, setPricesLoading] = useState(false);
+  const [pricesError, setPricesError] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [favoriteName, setFavoriteName] = useState("");
@@ -58,6 +59,7 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
       return;
     }
     setPricesLoading(true);
+    setPricesError(null);
     try {
       const params = new URLSearchParams({
         items: selectedItems.map(itemId).join(","),
@@ -70,7 +72,15 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
       }
       const res = await fetch(`/api/market/prices?${params.toString()}`);
       const data = await res.json();
+      if (!res.ok) {
+        setPricesError(data.detail ?? data.error ?? `Request failed (${res.status})`);
+        setPrices([]);
+        return;
+      }
       setPrices(data.prices ?? []);
+    } catch (err) {
+      setPricesError(err instanceof Error ? err.message : "Network error");
+      setPrices([]);
     } finally {
       setPricesLoading(false);
     }
@@ -283,6 +293,12 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
               Export CSV
             </button>
           </section>
+
+          {pricesError && (
+            <p className="rounded border border-red-800 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+              Failed to load prices: {pricesError}
+            </p>
+          )}
 
           <fieldset className="flex flex-wrap gap-3">
             <legend className="text-xs text-neutral-400 mb-1">Cities</legend>

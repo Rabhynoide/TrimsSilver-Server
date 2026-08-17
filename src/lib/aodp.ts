@@ -63,16 +63,19 @@ export async function fetchCurrentPrices(
   return res.json();
 }
 
-// Averages avg_price across whatever daily buckets AODP has within the last
-// `averageDays` days, per (item_id, city, quality). Buckets with no trades
-// (item_count 0) are excluded from the average.
+export type AverageEntry = { avgPrice: number; avgAmount: number };
+
+// Averages avg_price (and item_count, as "average amount traded") across
+// whatever daily buckets AODP has within the last `averageDays` days, per
+// (item_id, city, quality). Buckets with no trades (item_count 0) are
+// excluded from the average.
 export async function fetchAveragePrices(
   region: AodpRegion,
   items: string[],
   locations: string[],
   qualities: number[],
   averageDays: number,
-): Promise<Map<string, number>> {
+): Promise<Map<string, AverageEntry>> {
   const url = new URL(`${baseUrl(region)}/history/${items.map(encodeURIComponent).join(",")}`);
   url.searchParams.set("locations", locations.join(","));
   url.searchParams.set("qualities", qualities.join(","));
@@ -85,7 +88,7 @@ export async function fetchAveragePrices(
   const rows: AodpHistoryRow[] = await res.json();
 
   const cutoff = Date.now() - averageDays * 24 * 60 * 60 * 1000;
-  const averages = new Map<string, number>();
+  const averages = new Map<string, AverageEntry>();
 
   for (const row of rows) {
     const relevantBuckets = row.data.filter(
@@ -93,11 +96,12 @@ export async function fetchAveragePrices(
     );
     if (relevantBuckets.length === 0) continue;
 
-    const total = relevantBuckets.reduce((sum, bucket) => sum + bucket.avg_price, 0);
-    averages.set(
-      priceKey(row.item_id, row.location, row.quality),
-      Math.round(total / relevantBuckets.length),
-    );
+    const priceTotal = relevantBuckets.reduce((sum, bucket) => sum + bucket.avg_price, 0);
+    const amountTotal = relevantBuckets.reduce((sum, bucket) => sum + bucket.item_count, 0);
+    averages.set(priceKey(row.item_id, row.location, row.quality), {
+      avgPrice: Math.round(priceTotal / relevantBuckets.length),
+      avgAmount: Math.round(amountTotal / relevantBuckets.length),
+    });
   }
 
   return averages;

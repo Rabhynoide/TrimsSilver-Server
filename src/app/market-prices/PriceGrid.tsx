@@ -3,16 +3,19 @@
 import { itemId, QUALITY_LABELS, QUALITY_LEVELS } from "./types";
 import type { PriceCheckerConfig, PriceRow, SelectedItem } from "./types";
 
-function ageBadge(dateStr: string): { label: string; className: string } | null {
+function ageBadge(dateStr: string): { label: string; title: string; className: string } | null {
   const date = new Date(dateStr);
   if (Number.isNaN(date.getTime()) || date.getTime() === 0) return null;
 
-  const days = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24);
-  if (days < 0) return null;
+  const hours = (Date.now() - date.getTime()) / (1000 * 60 * 60);
+  if (hours < 0) return null;
 
-  if (days < 1) return { label: "<1d", className: "bg-green-700" };
-  if (days < 7) return { label: `${Math.floor(days)}d`, className: "bg-amber-700" };
-  return { label: `${Math.floor(days)}d`, className: "bg-red-800" };
+  const label = hours < 10 ? hours.toFixed(1) : Math.round(hours).toString();
+  const title = `${label} hour${hours >= 1.05 || hours < 0.95 ? "s" : ""} old`;
+
+  if (hours < 2) return { label, title, className: "bg-green-700" };
+  if (hours < 24) return { label, title, className: "bg-amber-700" };
+  return { label, title, className: "bg-red-800" };
 }
 
 function Cell({ row, config }: { row: PriceRow | undefined; config: PriceCheckerConfig }) {
@@ -25,18 +28,24 @@ function Cell({ row, config }: { row: PriceRow | undefined; config: PriceChecker
   const badge = headline > 0 ? ageBadge(headlineDate) : null;
 
   return (
-    <td className="relative border border-neutral-800 px-2 py-1 text-center">
+    <td className="relative border border-neutral-800 px-2 py-1">
       {badge && (
         <span
+          title={badge.title}
           className={`absolute top-0 right-0 rounded-bl px-1 text-[10px] text-white ${badge.className}`}
         >
           {badge.label}
         </span>
       )}
-      <div className="font-semibold">{headline > 0 ? headline.toLocaleString() : "-"}</div>
+      <div className="text-center font-semibold">{headline > 0 ? headline.toLocaleString() : "-"}</div>
       {config.showAverages && (
-        <div className="text-xs text-neutral-400">
-          {row.avgPrice != null ? row.avgPrice.toLocaleString() : "-"}
+        <div className="flex justify-between px-1 text-xs text-neutral-400">
+          <span title="Average price">
+            {row.avgPrice != null ? row.avgPrice.toLocaleString() : "-"}
+          </span>
+          <span title="Average amount traded">
+            {row.avgAmount != null ? row.avgAmount.toLocaleString() : "-"}
+          </span>
         </div>
       )}
     </td>
