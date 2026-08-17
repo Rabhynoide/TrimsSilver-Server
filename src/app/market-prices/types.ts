@@ -86,7 +86,14 @@ export const QUALITY_LABELS: Record<number, string> = {
 };
 
 export function itemId(item: SelectedItem): string {
-  return item.enchant > 0 ? `${item.uniqueName}${item.enchantSuffix}${item.enchant}` : item.uniqueName;
+  if (item.enchant === 0) return item.uniqueName;
+  // Equipment: enchant N of the same base item -> "UNIQUENAME@N".
+  // Resources: enchant N is its own standalone game item named
+  // "UNIQUENAME_LEVELN" (see build-item-catalog.mjs) — but AODP still expects
+  // the "@N" appended on top of that, i.e. "UNIQUENAME_LEVELN@N".
+  const base =
+    item.enchantSuffix === "_LEVEL" ? `${item.uniqueName}_LEVEL${item.enchant}` : item.uniqueName;
+  return `${base}@${item.enchant}`;
 }
 
 export function selectedItemKey(item: SelectedItem): string {

@@ -26,8 +26,7 @@ function variantToSelectedItem(v: Variant): SelectedItem {
 }
 
 function variantIconUrl(v: Variant): string {
-  const suffix = v.enchant > 0 ? `${v.catalogItem.enchantSuffix}${v.enchant}` : "";
-  return `https://render.albiononline.com/v1/item/${v.catalogItem.uniqueName}${suffix}.png`;
+  return `https://render.albiononline.com/v1/item/${itemId(variantToSelectedItem(v))}.png`;
 }
 
 export default function ItemPicker({
