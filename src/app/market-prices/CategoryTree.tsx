@@ -5,7 +5,6 @@ import { buildCategoryTree } from "./categoryTaxonomy";
 import type { CatalogItem } from "./types";
 
 function selectedCount(items: CatalogItem[], selected: Set<string>): number {
-  if (selected.size === 0) return items.length;
   return items.filter((item) => selected.has(item.uniqueName)).length;
 }
 
@@ -157,14 +156,9 @@ export default function CategoryTree({
                   >
                     <input
                       type="checkbox"
-                      checked={selected.size === 0 || selected.has(item.uniqueName)}
+                      checked={selected.has(item.uniqueName)}
                       onChange={() => {
                         const next = new Set(selected);
-                        if (selected.size === 0) {
-                          // Switching out of the implicit "all selected" state: everything
-                          // else in the catalog becomes explicitly selected except this one.
-                          for (const catalogItem of catalog) next.add(catalogItem.uniqueName);
-                        }
                         if (next.has(item.uniqueName)) {
                           next.delete(item.uniqueName);
                         } else {
