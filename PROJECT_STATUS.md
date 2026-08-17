@@ -1,6 +1,6 @@
 # TrimsSilver — Project Status & Handoff
 
-Written 2026-08-17, updated same day after implementing the ingest endpoints. Read this first in a new session — it's the durable record; a fresh Claude Code session on a different machine has no memory of this conversation.
+Written 2026-08-17, updated same day after implementing the ingest endpoints and then the Discord OAuth client flow. Read this first in a new session — it's the durable record; a fresh Claude Code session on a different machine has no memory of this conversation.
 
 ## What TrimsSilver is
 
@@ -25,6 +25,7 @@ A fork of JPCodeCraft's "AFM Data Client" (`AlbionDataAvalonia`, an Albion Onlin
 - Removed the client's old behavior of downloading `AppSettings` from AFM's CDN at runtime (`SettingsManager.cs`) — it would have silently broken with the renamed settings fields, and no longer made sense for an independent fork anyway.
 - **Server deployed live** via Docker/Portainer stack on the user's own server (see Deployment section below for the fixes this took).
 - **Prisma schema + ingest endpoints for all 7 private upload types implemented, tested end-to-end against a local dev DB, and deployed** (issue #1 scope). See "Private data model" below.
+- **Client issue #3 done: `AuthService.cs` now does Discord OAuth against TrimsSilver-Server instead of Google/Firebase.** Client build verified with 0 new errors/warnings. See "Client auth flow" below — this is the biggest remaining piece before the real client can talk to the real server end-to-end, and it's now code-complete on both sides (only issue #2's URL flip is left).
 
 ### Deployment (Docker/Portainer) — fixes applied this session
 Two things broke the first Portainer stack deploy, both now fixed and committed:
@@ -44,11 +45,24 @@ Design notes worth knowing before extending this:
 
 ### API auth: bearer tokens, not the Auth.js session cookie
 The desktop client has no cookie jar, so it can't use Auth.js's database session cookie directly. Added:
-- `ApiToken` Prisma model (hashed token storage, never the raw value).
-- `POST /api/tokens` — mints a token for the **currently signed-in browser session** (gated by the normal Auth.js cookie via `auth()`); returns the raw token once. `GET /api/tokens` lists a user's tokens (metadata only).
-- `src/lib/api-auth.ts`'s `requireApiUser()` — validates `Authorization: Bearer <token>` on every ingest route.
+- `ApiToken` Prisma model (hashed token storage, never the raw value; no expiry — tokens are long-lived personal-access-token style, revoked by deleting the row, not rotated).
+- `src/lib/api-auth.ts`: `mintApiToken(userId, label)` (shared minting helper) and `requireApiUser(request)` (validates `Authorization: Bearer <token>` on every ingest route).
+- `POST /api/tokens` — mints a token for the currently signed-in browser session directly (for manual use / a future dashboard). `GET /api/tokens` lists a user's tokens (metadata only).
+- **`GET /cli-auth?redirect_uri=<loopback-url>`** — what the desktop client actually opens in the system browser. Signs the user into Discord if needed (via a click-through button — `next-auth`'s `signIn()` mutates cookies, which Next.js only allows inside a Server Action, not a bare page render, so it can't happen automatically on page load), then a second click-through ("Autoriser") mints a token via a Server Action and redirects to `redirect_uri` with `?token=...` attached. **`redirect_uri` is validated server-side to be `http://localhost`, `http://127.0.0.1`, or `http://[::1]`, rejecting everything else** — this hands out a live credential, so allowing arbitrary redirect targets would be an open-redirect-to-credential-leak vulnerability.
+- **`GET /api/me`** — validates a bearer token and returns `{id, name, email, image}`, or 401. Since `ApiToken` never expires, this fully replaces the old Firebase refresh-token exchange: a token is either still accepted or it isn't, nothing to refresh.
 
-**This is a stopgap**, not the final UX — today the only way to get a token is to sign in via a browser and call `POST /api/tokens` manually (or from a future dashboard page). The real flow, to be wired together with client issue #3 (Discord OAuth in `AuthService.cs`), is: client opens system browser → user signs in with Discord → server mints a token → redirects to the client's local `HttpListener` with the token attached, mirroring the old Firebase pattern. That redirect-with-token page doesn't exist yet.
+This is no longer a stopgap — it's the actual, complete, tested flow. Only gap: no UI to revoke/list a lost device's token yet (would need a dashboard page calling `GET/DELETE` on `ApiToken` rows — not built).
+
+### Client auth flow (`AuthService.cs`, client issue #3)
+`SignInAsync()` now: opens the browser to `{TrimsSilverAuthUrl}?redirect_uri={TrimsSilverAuthRedirectUri}` (a local `HttpListener`, same pattern as before) → user signs into Discord + clicks "Autoriser" on `/cli-auth` → listener catches `?token=...` → client calls `GET {TrimsSilverIngestApiBase}/me` with that bearer token to fetch profile info → stores the token in the existing local SQLite `UserAuth` table (repurposed: the `RefreshToken` column now holds the non-expiring TrimsSilver token, not a Firebase refresh token — no EF migration needed, same column).
+
+Because tokens don't expire, the whole refresh-scheduling machinery is gone: `EnsureValidTokenAsync()` is now a synchronous local presence check (no network call, safe to call before every upload), and `TryRecoverFromUnauthorizedAsync()`/`ForceTokenRefreshAsync()` both just re-validate against `GET /api/me` — log the user out only on a confirmed 401, leave the session alone on a transient network error.
+
+`FirebaseAuthResponse` (the model) **keeps its name and shape** on purpose — every consumer (`MainViewModel`, `SettingsViewModel`, `LegendaryViewModel`, `PortfolioUploadService`, `LegendarySaleService`, `ItemEstimatedMarketValueBackendLoader`, `TrimsSilverUploader`) binds to `CurrentFirebaseUser`/`FirebaseUserChanged`/`FirebaseUserId`/`.IdToken`/`.LocalId` and none of that changed, so **none of those 8 files needed touching**. Renaming `FirebaseAuthResponse` itself is deferred alongside the other leftover AFM/Firebase-branded UI strings already noted below.
+
+Settings changes in `AppSettings.cs`/`DefaultAppSettings.json`: `TrimsSilverAuthClientId` (Discord client id) is **gone** — the client never talks to Discord directly anymore, only to our own server. `TrimsSilverAuthApiUrl` is replaced by `TrimsSilverAuthUrl`, already set to the live `https://trimssilver.trimards-island.org/cli-auth`. `TrimsSilverAuthRedirectUri` is unchanged (`http://localhost:5000/`).
+
+**Not yet end-to-end tested with a real Discord account or a running Avalonia client** (no GUI/browser available in the session that built this) — server-side pieces (`/cli-auth`'s redirect-uri validation, `/api/me`) were curl-tested; client-side changes were only verified to compile (`dotnet build`, 0 errors). `TrimsSilverIngestApiBase` still points at the old AFM host, so `GET {base}/me` will 404 until issue #2 flips it — that's the last piece before a real end-to-end test is even possible.
 
 ### Ingest endpoints (exact same relative paths as the old AFM ones on purpose)
 So that client issue #2 only needs a settings change (`TrimsSilverIngestApiBase` → `https://trimssilver.trimards-island.org/api`), not a client code change:
@@ -81,8 +95,8 @@ Server (`Rabhynoide/TrimsSilver-Server`):
 
 Client (`Rabhynoide/TrimsSilver-Client`):
 - #1 — Rebranding AFM → TrimsSilver — **closed**, done
-- #2 — Pointer le client vers TrimsSilver-Server — **scope reduced**: only the private channel (`TrimsSilverIngestApiBase` and its sub-paths), not the public AODP uploader
-- #3 — Remplacer l'auth Google/Firebase par Discord OAuth dans `AuthService.cs`
+- #2 — Pointer le client vers TrimsSilver-Server — **scope reduced, and now the only remaining piece**: just flip `TrimsSilverIngestApiBase` to `https://trimssilver.trimards-island.org/api` in `DefaultAppSettings.json`
+- #3 — Remplacer l'auth Google/Firebase par Discord OAuth dans `AuthService.cs` — **implemented this session** (commit `dcbc19c`), not yet closed on GitHub, not yet end-to-end tested with a real account
 - #4 — Reset du versioning client à 0.x
 
 ## Environment gotchas hit on the original dev machine
@@ -96,7 +110,7 @@ Client (`Rabhynoide/TrimsSilver-Client`):
 
 ## Next steps, in the order they were being tackled
 
-1. Client issue #3: Discord OAuth flow in `AuthService.cs` — mirrors the existing Google/Firebase pattern (open system browser, `HttpListener` on localhost catches the redirect) but against TrimsSilver-Server's Discord flow instead. Needs to end with the server minting an `ApiToken` (via the existing `POST /api/tokens`, or a purpose-built redirect page) and handing the raw token to the client's local listener — that hand-off page doesn't exist yet, only the token-minting endpoint itself.
-2. Client issue #2 (reduced scope): point the private-channel settings (`TrimsSilverAuthClientId`, `TrimsSilverIngestApiBase`, etc. in `DefaultAppSettings.json`) at `https://trimssilver.trimards-island.org/api` — no server-side path changes needed, the 7 ingest routes already match the old AFM relative paths exactly.
-3. `PrivateOrderShares` identifier resolution (matching a shared value like a Discord tag to a real TrimsSilver account) — currently unimplemented, everything comes back `resolved: false`.
+1. **Client issue #2 (reduced scope), now the only blocker for a real end-to-end test**: point `TrimsSilverIngestApiBase` at `https://trimssilver.trimards-island.org/api` in `DefaultAppSettings.json` — no server-side path changes needed, the 7 ingest routes + `/me` already match/extend the old AFM relative paths exactly. Once flipped, do an actual live test: run the built client, sign in through the real Discord flow, confirm a market-order upload round-trips into Postgres.
+2. `PrivateOrderShares` identifier resolution (matching a shared value like a Discord tag to a real TrimsSilver account) — currently unimplemented, everything comes back `resolved: false`.
+3. A dashboard page to list/revoke `ApiToken`s (lost/stolen device scenario currently has no UI, only raw DB access).
 4. Later, lower priority: an AODP public-data reader/cache service on the server (per the architecture decision above) — not blocking anything else.
