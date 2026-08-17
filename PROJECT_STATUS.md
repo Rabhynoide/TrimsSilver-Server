@@ -116,18 +116,20 @@ The client's **public AODP channel stays exactly as-is** — `MarketOrder`, `Gol
 
 Server (`Rabhynoide/TrimsSilver-Server`):
 - #1 — Endpoint d'ingestion des données de marché — **closed**. Scope-revision comment posted (7 private types only, not public AODP data).
-- #2 — Dashboard utilisateur — open. Comment posted noting its prerequisites (Discord auth, market ingestion) are done, and flagging an `ApiToken` list/revoke page as a concrete first slice.
+- #2 — Dashboard utilisateur — open. Comment posted noting its prerequisites (Discord auth, market ingestion) are done.
 - #3 — Optimiser l'image Docker — open, unchanged (currently ships full `node_modules` incl. dev deps for reliability; revisit once there's more to containerize).
+- #4 — Résolution d'identifiants pour `PrivateOrderShares` — new, open. Split out of the "Private data model" gap noted above.
+- #5 — Page de gestion des tokens API (lister/révoquer) — new, open. Concrete first slice of #2, split out into its own issue since it's independently actionable.
+- #6 — Service de lecture des données publiques AODP — new, open. Tracks the "reader" half of the architecture decision below; low priority, not blocking anything.
 
 Client (`Rabhynoide/TrimsSilver-Client`):
 - #1 — Rebranding AFM → TrimsSilver — **closed**, done
 - #2 — Pointer le client vers TrimsSilver-Server — **closed**. Comment posted covering the trailing-slash `Uri` gotcha and the PoW question (not kept — Discord auth replaces it for the private channel; public AODP's PoW is untouched).
-- #3 — Remplacer l'auth Google/Firebase par Discord OAuth dans `AuthService.cs` — **closed**. Comment posted covering the new flow and the `ItemEstimatedMarketValueBackendLoader`/Portfolio/Legendary auth breakage (see "Client UI/log text rebranded" above).
+- #3 — Remplacer l'auth Google/Firebase par Discord OAuth dans `AuthService.cs` — **closed**. Comment posted covering the new flow and the `ItemEstimatedMarketValueBackendLoader`/Portfolio/Legendary auth breakage.
 - #4 — Reset du versioning client à 0.x — open. Comment posted noting its prerequisite (rebranding, #1) is done.
+- #5 — Portfolio, marketplace Legendary et lookups EMV AFM cassés (401) — new, open. Full writeup of the "Client UI/log text rebranded" finding above; this is where the actual product decision should get tracked/discussed, not just here.
 
-All six issues updated/closed on GitHub as of 2026-08-18 to match this doc — this section and GitHub are now in sync.
-
-**#2 and #3 are done and verified with a real Discord account against production** — see "Confirmed working end-to-end" above. Closing them on GitHub itself wasn't done from this session.
+All issues (server #1-6, client #1-5) reflect this doc as of 2026-08-18 — GitHub is the source of truth for granular tracking, this doc for the "why" behind each.
 
 ## Environment gotchas hit on the original dev machine
 
@@ -171,8 +173,8 @@ Two levels: a fast server-only check (no client build, no Discord account needed
 
 ## Next steps, in the order they were being tackled
 
-1. **Decide the fate of Portfolio / Legendary marketplace / AFM EMV lookups** (see "Client UI/log text rebranded" above) — currently disabled via `FeatureFlags.AfmIntegrationEnabled = false` in the client. This is a product decision (retire vs. reintroduce a second Google/Firebase auth flow vs. something else), not something to solve with more code without direction.
-2. `PrivateOrderShares` identifier resolution (matching a shared value like a Discord tag to a real TrimsSilver account) — currently unimplemented, everything comes back `resolved: false`.
-3. A dashboard page to list/revoke `ApiToken`s (lost/stolen device scenario currently has no UI, only raw DB access).
-4. `flipperOrders`, `playercount`, and `be/festivities` haven't been seen working live yet (just not exercised by gameplay during the test session) — worth a quick real-world confirmation next time the client runs, though there's no reason to expect them to behave differently from the three routes already confirmed.
-5. Later, lower priority: an AODP public-data reader/cache service on the server (per the architecture decision above) — not blocking anything else.
+1. **Decide the fate of Portfolio / Legendary marketplace / AFM EMV lookups** — client issue #5, currently disabled via `FeatureFlags.AfmIntegrationEnabled = false`. This is a product decision (retire vs. reintroduce a second Google/Firebase auth flow vs. something else), not something to solve with more code without direction.
+2. `PrivateOrderShares` identifier resolution — server issue #4.
+3. A dashboard page to list/revoke `ApiToken`s — server issue #5.
+4. `flipperOrders`, `playercount`, and `be/festivities` haven't been seen working live yet (just not exercised by gameplay during the test session) — worth a quick real-world confirmation next time the client runs, though there's no reason to expect them to behave differently from the three routes already confirmed. Not filed as its own issue — a verification task, not a bug or a feature.
+5. Later, lower priority: an AODP public-data reader/cache service on the server — server issue #6, not blocking anything else.
