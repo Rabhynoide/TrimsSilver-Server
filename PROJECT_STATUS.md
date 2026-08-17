@@ -115,15 +115,17 @@ The client's **public AODP channel stays exactly as-is** — `MarketOrder`, `Gol
 ## GitHub issues (source of truth for granular tracking)
 
 Server (`Rabhynoide/TrimsSilver-Server`):
-- #1 — Endpoint d'ingestion des données de marché — **implemented this session** (schema + all 7 routes, see above); still needs a scope-revision comment on GitHub itself (not done from this session) noting it only covers the 7 private types, not public AODP data.
-- #2 — Dashboard utilisateur
-- #3 — Optimiser l'image Docker (currently ships full `node_modules` incl. dev deps for reliability; revisit once there's more to containerize)
+- #1 — Endpoint d'ingestion des données de marché — **closed**. Scope-revision comment posted (7 private types only, not public AODP data).
+- #2 — Dashboard utilisateur — open. Comment posted noting its prerequisites (Discord auth, market ingestion) are done, and flagging an `ApiToken` list/revoke page as a concrete first slice.
+- #3 — Optimiser l'image Docker — open, unchanged (currently ships full `node_modules` incl. dev deps for reliability; revisit once there's more to containerize).
 
 Client (`Rabhynoide/TrimsSilver-Client`):
 - #1 — Rebranding AFM → TrimsSilver — **closed**, done
-- #2 — Pointer le client vers TrimsSilver-Server — **implemented and confirmed working live** (commit `eadc1ee`). Not yet closed on GitHub.
-- #3 — Remplacer l'auth Google/Firebase par Discord OAuth dans `AuthService.cs` — **implemented and confirmed working live** (commit `dcbc19c`). Not yet closed on GitHub.
-- #4 — Reset du versioning client à 0.x
+- #2 — Pointer le client vers TrimsSilver-Server — **closed**. Comment posted covering the trailing-slash `Uri` gotcha and the PoW question (not kept — Discord auth replaces it for the private channel; public AODP's PoW is untouched).
+- #3 — Remplacer l'auth Google/Firebase par Discord OAuth dans `AuthService.cs` — **closed**. Comment posted covering the new flow and the `ItemEstimatedMarketValueBackendLoader`/Portfolio/Legendary auth breakage (see "Client UI/log text rebranded" above).
+- #4 — Reset du versioning client à 0.x — open. Comment posted noting its prerequisite (rebranding, #1) is done.
+
+All six issues updated/closed on GitHub as of 2026-08-18 to match this doc — this section and GitHub are now in sync.
 
 **#2 and #3 are done and verified with a real Discord account against production** — see "Confirmed working end-to-end" above. Closing them on GitHub itself wasn't done from this session.
 
@@ -173,5 +175,4 @@ Two levels: a fast server-only check (no client build, no Discord account needed
 2. `PrivateOrderShares` identifier resolution (matching a shared value like a Discord tag to a real TrimsSilver account) — currently unimplemented, everything comes back `resolved: false`.
 3. A dashboard page to list/revoke `ApiToken`s (lost/stolen device scenario currently has no UI, only raw DB access).
 4. `flipperOrders`, `playercount`, and `be/festivities` haven't been seen working live yet (just not exercised by gameplay during the test session) — worth a quick real-world confirmation next time the client runs, though there's no reason to expect them to behave differently from the three routes already confirmed.
-5. Close out client issues #2 and #3 on GitHub now that they're verified.
-6. Later, lower priority: an AODP public-data reader/cache service on the server (per the architecture decision above) — not blocking anything else.
+5. Later, lower priority: an AODP public-data reader/cache service on the server (per the architecture decision above) — not blocking anything else.
