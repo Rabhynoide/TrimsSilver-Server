@@ -31,6 +31,20 @@ model User {
   itemEstimatedMarketValues     ItemEstimatedMarketValue[]
   privateOrderSharesOwned       PrivateOrderShare[]        @relation("PrivateOrderSharesOwned")
   privateOrderSharesResolvedFor PrivateOrderShare[]        @relation("PrivateOrderSharesResolved")
+  apiTokens                     ApiToken[]
+}
+
+// Bearer token the desktop client sends on ingest requests, minted by a signed-in browser
+// session at /api/tokens. Stands in for a full OAuth-device flow until client issue #3 lands.
+model ApiToken {
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique
+  label      String?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
