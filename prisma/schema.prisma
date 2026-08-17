@@ -22,6 +22,15 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  marketOrders                  MarketOrder[]
+  playerCounts                  PlayerCount[]
+  achievementSnapshots          AchievementSnapshot[]
+  globalMultipliers             GlobalMultiplier[]
+  festivitySnapshots            FestivitySnapshot[]
+  itemEstimatedMarketValues     ItemEstimatedMarketValue[]
+  privateOrderSharesOwned       PrivateOrderShare[]        @relation("PrivateOrderSharesOwned")
+  privateOrderSharesResolvedFor PrivateOrderShare[]        @relation("PrivateOrderSharesResolved")
 }
 
 model Account {
@@ -58,4 +67,173 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// --- Private, Discord-authenticated ingest data ---
+// The client's public AODP channel (market orders broadcast to pow.*.albion-online-data.com)
+// is out of scope here by design — see PROJECT_STATUS.md's architecture decision. Everything
+// below backs the 7 private upload types instead, each owned by the authenticated User who
+// submitted it (identified server-side via the Auth.js session, not any client-supplied id).
+
+enum AuctionType {
+  unknown
+  offer
+  request
+}
+
+// TrimsSilverMarketUpload / old "flipperOrders" endpoint.
+// One row per in-game market order, upserted by (serverId, orderId) as a current-state table.
+model MarketOrder {
+  id                 String      @id @default(cuid())
+  orderId            BigInt
+  serverId           Int
+  itemTypeId         String
+  itemGroupTypeId    String
+  locationId         String
+  qualityLevel       Int
+  enchantmentLevel   Int
+  unitPriceSilver    BigInt
+  amount             Int
+  auctionType        AuctionType
+  expires            String
+  contributeToPublic Boolean     @default(false)
+  shareWithFriends   Boolean     @default(false)
+
+  uploaderId String
+  uploader   User   @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([serverId, orderId])
+  @@index([serverId, itemTypeId, locationId])
+  @@index([uploaderId])
+}
+
+// PlayerCount / old "playercount" endpoint. Append-only time series, one row per observation.
+model PlayerCount {
+  id              String   @id @default(cuid())
+  serverId        Int
+  locationId      String
+  observedAt      DateTime
+  nonFlaggedCount Int?
+  flaggedCount    Int?
+  isBz            Boolean
+
+  submittedById String
+  submittedBy   User   @relation(fields: [submittedById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([serverId, locationId, observedAt])
+}
+
+// AchievementUpload / old "be/achievements" endpoint.
+// Latest achievement snapshot per (serverId, characterName); entries replaced wholesale on upload.
+model AchievementSnapshot {
+  id            String @id @default(cuid())
+  serverId      Int
+  characterName String
+
+  submittedById String
+  submittedBy   User   @relation(fields: [submittedById], references: [id], onDelete: Cascade)
+
+  achievements AchievementEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([serverId, characterName])
+}
+
+model AchievementEntry {
+  id            String @id @default(cuid())
+  achievementId String
+  level         Int
+
+  snapshotId String
+  snapshot   AchievementSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@unique([snapshotId, achievementId])
+}
+
+// GlobalMultiplierUpload / old "be/globalMultiplier" endpoint.
+// Current value per server, upserted on change.
+model GlobalMultiplier {
+  id       String @id @default(cuid())
+  serverId Int    @unique
+  value    Float
+
+  submittedById String
+  submittedBy   User   @relation(fields: [submittedById], references: [id], onDelete: Cascade)
+
+  updatedAt DateTime @updatedAt
+}
+
+// FestivitiesUpload / old "be/festivities" endpoint.
+// Current set of active/known events per server; entries replaced wholesale on upload.
+model FestivitySnapshot {
+  id       String @id @default(cuid())
+  serverId Int    @unique
+
+  submittedById String
+  submittedBy   User   @relation(fields: [submittedById], references: [id], onDelete: Cascade)
+
+  events FestivityEvent[]
+
+  updatedAt DateTime @updatedAt
+}
+
+model FestivityEvent {
+  id         String   @id @default(cuid())
+  kind       Int
+  category   String
+  uniqueName String
+  startTime  DateTime
+  endTime    DateTime
+
+  snapshotId String
+  snapshot   FestivitySnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@unique([snapshotId, category, uniqueName, startTime])
+}
+
+// ItemEstimatedMarketValueUpload / old "itemEstimatedMarketValues" endpoint.
+// One row per (serverId, itemUniqueName, quality, day), upserted as clients report EMVs.
+model ItemEstimatedMarketValue {
+  id             String   @id @default(cuid())
+  serverId       Int
+  itemUniqueName String
+  quality        Int
+  day            DateTime @db.Date
+  emv            BigInt
+  blackMarketEmv BigInt?
+
+  submittedById String
+  submittedBy   User   @relation(fields: [submittedById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([serverId, itemUniqueName, quality, day])
+}
+
+// PrivateOrderShares / old "privateOrderShares" endpoint (GET/PUT, not a queued upload).
+// The list of identifiers an owner has shared their private market orders with.
+model PrivateOrderShare {
+  id       String  @id @default(cuid())
+  value    String
+  type     String
+  resolved Boolean @default(false)
+
+  ownerId String
+  owner   User   @relation("PrivateOrderSharesOwned", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  resolvedUserId String?
+  resolvedUser   User?   @relation("PrivateOrderSharesResolved", fields: [resolvedUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ownerId, value])
 }
