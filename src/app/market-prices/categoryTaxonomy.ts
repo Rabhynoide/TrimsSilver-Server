@@ -78,6 +78,19 @@ export function subCategoryLabel(item: CatalogItem): string {
     .join(" ");
 }
 
+// Gear names follow "{tier rank}'s {line name}", e.g. "Adept's Broadsword" (T4) /
+// "Elder's Broadsword" (T8) — the line name ("Broadsword") is what actually
+// distinguishes item types; the tier rank duplicates the Tiers filter. Stripping
+// it lets the category tree's last level show one row per type instead of one
+// per (type, tier) combination. Items that don't follow the convention (mounts,
+// resources, furniture, etc.) are returned unchanged and stay their own line.
+const TIER_RANK_PREFIX =
+  /^(Beginner's|Novice's|Journeyman's|Adept's|Expert's|Master's|Grandmaster's|Elder's)\s+/;
+
+export function lineNameOf(item: CatalogItem): string {
+  return item.name.replace(TIER_RANK_PREFIX, "");
+}
+
 export type CategoryTreeNode = {
   label: string;
   items: CatalogItem[];

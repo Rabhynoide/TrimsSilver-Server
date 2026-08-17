@@ -1,11 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { buildCategoryTree } from "./categoryTaxonomy";
+import { buildCategoryTree, lineNameOf } from "./categoryTaxonomy";
 import type { CatalogItem } from "./types";
 
 function selectedCount(items: CatalogItem[], selected: Set<string>): number {
   return items.filter((item) => selected.has(item.uniqueName)).length;
+}
+
+type Line = { label: string; items: CatalogItem[] };
+
+function groupByLine(items: CatalogItem[]): Line[] {
+  const byLine = new Map<string, CatalogItem[]>();
+  for (const item of items) {
+    const label = lineNameOf(item);
+    if (!byLine.has(label)) byLine.set(label, []);
+    byLine.get(label)!.push(item);
+  }
+  return [...byLine.entries()]
+    .map(([label, lineItems]) => ({ label, items: lineItems }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 function SelectAllRow({
@@ -62,6 +76,7 @@ export default function CategoryTree({
   const tree = useMemo(() => buildCategoryTree(catalog), [catalog]);
   const topNode = openTop ? tree.get(openTop) : undefined;
   const subNode = topNode && openSub ? topNode.children.get(openSub) : undefined;
+  const lines = subNode ? groupByLine(subNode.items) : [];
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -149,28 +164,32 @@ export default function CategoryTree({
             <div className="flex w-56 flex-col">
               <SelectAllRow items={subNode.items} selected={selected} onChange={onChange} />
               <div className="max-h-80 overflow-y-auto">
-                {subNode.items.map((item) => (
-                  <label
-                    key={item.uniqueName}
-                    className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-neutral-800"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.has(item.uniqueName)}
-                      onChange={() => {
-                        const next = new Set(selected);
-                        if (next.has(item.uniqueName)) {
-                          next.delete(item.uniqueName);
-                        } else {
-                          next.add(item.uniqueName);
-                        }
-                        onChange(next);
-                      }}
-                    />
-                    <span className="text-neutral-500">T{item.tier}</span>
-                    {item.name}
-                  </label>
-                ))}
+                {lines.map((line) => {
+                  const lineSelected = line.items.every((item) => selected.has(item.uniqueName));
+                  return (
+                    <label
+                      key={line.label}
+                      className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-neutral-800"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={lineSelected}
+                        onChange={() => {
+                          const next = new Set(selected);
+                          for (const item of line.items) {
+                            if (lineSelected) {
+                              next.delete(item.uniqueName);
+                            } else {
+                              next.add(item.uniqueName);
+                            }
+                          }
+                          onChange(next);
+                        }}
+                      />
+                      {line.label}
+                    </label>
+                  );
+                })}
               </div>
             </div>
           )}
