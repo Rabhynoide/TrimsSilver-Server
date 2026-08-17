@@ -21,6 +21,7 @@ function variantToSelectedItem(v: Variant): SelectedItem {
     tier: v.catalogItem.tier,
     enchant: v.enchant,
     enchantSuffix: v.catalogItem.enchantSuffix,
+    hasQuality: v.catalogItem.hasQuality,
   };
 }
 

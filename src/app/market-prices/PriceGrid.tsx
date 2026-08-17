@@ -73,6 +73,9 @@ export default function PriceGrid({
       {selectedItems.map((item) => {
         const id = itemId(item);
         const rowsForItem = prices.filter((p) => p.itemId === id);
+        // Resources, farmables, consumables etc. never vary by quality — only
+        // equipment/mounts do (see build-item-catalog.mjs's hasQuality flag).
+        const qualityLevels = item.hasQuality ? QUALITY_LEVELS : [1];
 
         return (
           <div key={id} className="rounded border border-neutral-800 p-3">
@@ -96,9 +99,9 @@ export default function PriceGrid({
                 <thead>
                   <tr>
                     <th className="border border-neutral-800 px-2 py-1 text-left">City</th>
-                    {QUALITY_LEVELS.map((quality) => (
+                    {qualityLevels.map((quality) => (
                       <th key={quality} className="border border-neutral-800 px-2 py-1">
-                        {QUALITY_LABELS[quality]}
+                        {item.hasQuality ? QUALITY_LABELS[quality] : "Price"}
                       </th>
                     ))}
                   </tr>
@@ -109,7 +112,7 @@ export default function PriceGrid({
                       <td className="border border-neutral-800 px-2 py-1 whitespace-nowrap">
                         {city}
                       </td>
-                      {QUALITY_LEVELS.map((quality) => {
+                      {qualityLevels.map((quality) => {
                         const row = rowsForItem.find(
                           (p) => p.city === city && p.quality === quality,
                         );

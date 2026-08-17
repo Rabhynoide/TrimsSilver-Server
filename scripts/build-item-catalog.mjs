@@ -118,12 +118,18 @@ function extractCatalog(rawItems, nameByUniqueName) {
         enchantSuffix = "_LEVEL";
       }
 
+      // Only equipment/mounts have quality (Normal..Masterpiece, 1-5) — gathered
+      // and refined resources, farmables, consumables, furniture etc. are always
+      // quality 1. `@maxqualitylevel` is only present on items that vary.
+      const hasQuality = Boolean(entry["@maxqualitylevel"]);
+
       rows.push({
         uniqueName,
         name,
         tier,
         maxEnchant,
         enchantSuffix,
+        hasQuality,
         shopCategory,
         shopSubCategory1: entry["@shopsubcategory1"] ?? null,
       });

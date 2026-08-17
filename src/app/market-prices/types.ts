@@ -10,6 +10,9 @@ export type CatalogItem = {
   tier: number;
   maxEnchant: number;
   enchantSuffix: EnchantSuffix;
+  // Only equipment/mounts vary Normal..Masterpiece — resources, farmables,
+  // consumables etc. are always quality 1 (see build-item-catalog.mjs).
+  hasQuality: boolean;
   shopCategory: string;
   shopSubCategory1: string | null;
 };
@@ -20,6 +23,7 @@ export type SelectedItem = {
   tier: number;
   enchant: number;
   enchantSuffix: EnchantSuffix;
+  hasQuality: boolean;
 };
 
 export type PriceRow = {
