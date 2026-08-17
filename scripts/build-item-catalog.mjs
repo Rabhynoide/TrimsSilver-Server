@@ -52,6 +52,12 @@ function extractCatalog(rawItems, nameByUniqueName) {
       const shopCategory = entry["@shopcategory"];
       if (!uniqueName || !shopCategory) continue;
 
+      // Vanity/cosmetic skins, GvG trophies, quest items etc. carry a shopcategory
+      // for in-game UI purposes but aren't player-tradable and mostly have no icon
+      // under this uniqueName in the render service — exclude them from the catalog.
+      if (entry["@showinmarketplace"] === "false") continue;
+      if (entry["@hidefromplayer"] === "true") continue;
+
       let tier = entry["@tier"] ? parseInt(entry["@tier"], 10) : null;
       if (tier == null) {
         const match = uniqueName.match(/^T(\d)_/);
