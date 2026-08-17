@@ -1,6 +1,6 @@
 # TrimsSilver — Project Status & Handoff
 
-Written 2026-08-17 to resume development on another machine. Read this first in a new session — it's the durable record; a fresh Claude Code session on a different machine has no memory of this conversation.
+Written 2026-08-17, updated same day after implementing the ingest endpoints. Read this first in a new session — it's the durable record; a fresh Claude Code session on a different machine has no memory of this conversation.
 
 ## What TrimsSilver is
 
@@ -8,7 +8,7 @@ A fork of JPCodeCraft's "AFM Data Client" (`AlbionDataAvalonia`, an Albion Onlin
 
 - **Client repo:** https://github.com/Rabhynoide/TrimsSilver-Client (branch `master`)
 - **Server repo:** https://github.com/Rabhynoide/TrimsSilver-Server (branch `main`) — this repo
-- **Backend URL:** https://trimssilver.trimards-island.org
+- **Backend URL:** https://trimssilver.trimards-island.org — **live**, deployed as a Docker Compose stack via Portainer on the user's own server. Verified reachable with the Discord sign-in button rendering.
 - **Auth:** Discord OAuth (via Auth.js), not the old Google/Firebase flow AFM used
 - Local clones live side by side on the original dev machine under `...\GitHub\Albion\TrimsSilver-Client` and `...\GitHub\Albion\TrimsSilver-Server`.
 
@@ -17,38 +17,65 @@ A fork of JPCodeCraft's "AFM Data Client" (`AlbionDataAvalonia`, an Albion Onlin
 - **Server (this repo):** Next.js 16 (TypeScript, App Router, Tailwind) + Prisma 7 + PostgreSQL + Auth.js v5 (Discord provider, database sessions via `@auth/prisma-adapter`). Prisma 7 requires an explicit driver adapter (`@prisma/adapter-pg` + `pg`) — see `src/lib/prisma.ts`; there's no more implicit native engine like Prisma 5/6. Dockerized (`Dockerfile` + `docker-compose.yml`, app + Postgres, migrations run automatically on container boot).
 - **Client:** unchanged .NET/Avalonia desktop app — see `TrimsSilver-Client/AGENTS.md` for its own build instructions.
 
-## Status as of 2026-08-17
+## Status as of 2026-08-17 (end of day)
 
 ### Done
 - Server scaffolded; Discord sign-in works end-to-end (user tested it live in a browser).
 - Client fully rebranded from AFM to TrimsSilver at the code level: class/identifier renames (`AFMUploader`→`TrimsSilverUploader`, `Afm*` settings fields→`TrimsSilver*`, etc.), app identity (AppData folder, Inno Setup installer, macOS bundle id `org.trimardsisland.trimssilver`, Linux install scripts, self-update URLs now point at this GitHub org). Commit `630d31a` on `TrimsSilver-Client`, build verified with 0 errors. Client issue #1 closed.
 - Removed the client's old behavior of downloading `AppSettings` from AFM's CDN at runtime (`SettingsManager.cs`) — it would have silently broken with the renamed settings fields, and no longer made sense for an independent fork anyway.
+- **Server deployed live** via Docker/Portainer stack on the user's own server (see Deployment section below for the fixes this took).
+- **Prisma schema + ingest endpoints for all 7 private upload types implemented, tested end-to-end against a local dev DB, and deployed** (issue #1 scope). See "Private data model" below.
+
+### Deployment (Docker/Portainer) — fixes applied this session
+Two things broke the first Portainer stack deploy, both now fixed and committed:
+1. **`env_file: - .env` doesn't work with Portainer.** Portainer's stack "Environment variables" UI doesn't necessarily materialize a `.env` file next to `docker-compose.yml` on the host, so `env_file: - .env` failed with `.env not found`. Fixed by switching `docker-compose.yml`'s `app` service to `environment: { AUTH_SECRET: ${AUTH_SECRET:?...}, ... }`-style interpolation instead — Portainer's env var UI feeds `${VAR}` substitution directly, file or not. **You must set `AUTH_SECRET`, `AUTH_URL` (the real public URL, not localhost), `AUTH_DISCORD_ID`, `AUTH_DISCORD_SECRET` in Portainer's stack env var UI** — `DATABASE_URL` is hardcoded in the compose file and doesn't need to be set there.
+2. **`Dockerfile` copied a `public/` folder that didn't exist** (Next.js App Router doesn't need one — favicon lives in `src/app/`), so the Docker build failed on `COPY --from=builder /app/public ./public`. Fixed by adding `public/.gitkeep` so the folder is tracked in git and exists in the build context.
+
+### Private data model (issue #1)
+`prisma/schema.prisma` now has, beyond the Auth.js tables: `MarketOrder`, `PlayerCount`, `AchievementSnapshot`+`AchievementEntry`, `GlobalMultiplier`, `FestivitySnapshot`+`FestivityEvent`, `ItemEstimatedMarketValue`, `PrivateOrderShare`, plus an `ApiToken` model for API auth (see below). Migration `20260817120000_add_private_ingest_models` adds them; `Dockerfile`'s `npx prisma migrate deploy` on container boot applies it automatically on next Portainer redeploy — no manual DB step needed.
+
+Design notes worth knowing before extending this:
+- Every private row is linked to the authenticated uploader via a relation to `User` — **client-supplied ids in the payload (e.g. `uploaderId`) are always ignored**, the uploader is resolved server-side from the bearer token.
+- `MarketOrder` and `ItemEstimatedMarketValue` are upsert-as-current-state tables (unique on `(serverId, orderId)` / `(serverId, itemUniqueName, quality, day)`), not append logs.
+- `AchievementSnapshot`/`FestivitySnapshot` replace their child rows wholesale on every upload (delete + recreate in a transaction) rather than diffing.
+- `PlayerCount` is the only true append-only time series.
+- `PrivateOrderShare`: **identifier resolution isn't implemented** — every submitted value is stored and returned as `resolved: false, type: "unresolved"`. No design exists yet for matching a shared identifier (e.g. a Discord tag) to a real TrimsSilver account; that's a real gap, not an oversight to silently work around.
+- `serverId` is a plain `Int` (1=Americas, 2=Asia, 3=Europe, hardcoded client-side in `AlbionServers.cs`) — no reference table needed.
+
+### API auth: bearer tokens, not the Auth.js session cookie
+The desktop client has no cookie jar, so it can't use Auth.js's database session cookie directly. Added:
+- `ApiToken` Prisma model (hashed token storage, never the raw value).
+- `POST /api/tokens` — mints a token for the **currently signed-in browser session** (gated by the normal Auth.js cookie via `auth()`); returns the raw token once. `GET /api/tokens` lists a user's tokens (metadata only).
+- `src/lib/api-auth.ts`'s `requireApiUser()` — validates `Authorization: Bearer <token>` on every ingest route.
+
+**This is a stopgap**, not the final UX — today the only way to get a token is to sign in via a browser and call `POST /api/tokens` manually (or from a future dashboard page). The real flow, to be wired together with client issue #3 (Discord OAuth in `AuthService.cs`), is: client opens system browser → user signs in with Discord → server mints a token → redirects to the client's local `HttpListener` with the token attached, mirroring the old Firebase pattern. That redirect-with-token page doesn't exist yet.
+
+### Ingest endpoints (exact same relative paths as the old AFM ones on purpose)
+So that client issue #2 only needs a settings change (`TrimsSilverIngestApiBase` → `https://trimssilver.trimards-island.org/api`), not a client code change:
+
+| Route | Method | Old AFM path |
+|---|---|---|
+| `/api/flipperOrders` | POST | `flipperOrders` |
+| `/api/playercount` | POST | `playercount` |
+| `/api/be/achievements` | POST | `be/achievements` |
+| `/api/be/globalMultiplier` | POST | `be/globalMultiplier` |
+| `/api/be/festivities` | POST | `be/festivities` |
+| `/api/itemEstimatedMarketValues` | POST | `itemEstimatedMarketValues` |
+| `/api/privateOrderShares` | GET, PUT | `privateOrderShares` |
+
+All tested end-to-end against a local dev DB with curl (auth rejection, successful writes, and upsert idempotency all verified working).
 
 ### Deliberately not done yet (by design, not forgotten)
 - Client UI text/log strings that still literally describe the **live** AFM backend (legendary item marketplace, "sign in to AFM" prompts, EMV/achievements upload messages) — relabeling those to "TrimsSilver" before the backend actually exists would be misleading, since the client still genuinely uploads there today. Fix once the client points at the new backend (see Next steps).
 - README screenshots/full content pass and new icon/logo artwork — design work, not code, out of scope for the rebrand pass.
 
 ### Key architecture decision (2026-08-17)
-The client's **public AODP channel stays exactly as-is** — `MarketOrder`, `GoldPriceUpload`, `MarketHistoriesUpload`, `BanditEventUpload` keep uploading straight to `pow.*.albion-online-data.com` like today. No client changes needed for this, and TrimsSilver-Server does **not** need to ingest/store this data. Instead, TrimsSilver-Server will act as a **reader** of AODP's public REST API (`https://<region>.albion-online-data.com/api/v2/stats/...`, no auth needed) to fetch current/historical prices — both what we contribute and what everyone else contributes.
-
-This means only the **private, Discord-authenticated channel** needs a database schema and ingest endpoints on our side. From the client's upload models (`AlbionDataAvalonia/Network/Models/`), that's 7 payload shapes, none of which have a Prisma model yet (current `prisma/schema.prisma` only has the Auth.js tables — `User`, `Account`, `Session`, `VerificationToken`):
-
-| Client type | Fields | Old AFM endpoint |
-|---|---|---|
-| `TrimsSilverMarketUpload` | Orders (item/location/quality/enchant/price/amount/auctionType/expires) + ServerId + UploaderId | `flipperOrders` |
-| `PlayerCount` | Location, Server, DateTime, NonFlaggedCount, FlaggedCount, IsBz | `playercount` |
-| `AchievementUpload` | CharacterName, ServerId, Achievements[{Id, Level}] | `be/achievements` |
-| `GlobalMultiplierUpload` | ServerId, GlobalMultiplier | `be/globalMultiplier` |
-| `FestivitiesUpload` | ServerId, Events[{Kind, Category, UniqueName, StartTime, EndTime}] | `be/festivities` |
-| `ItemEstimatedMarketValueUpload` | ServerId, Items[{ItemUniqueName, Emv, BlackMarketEmv, Quality, Day}] | `itemEstimatedMarketValues` |
-| `PrivateOrderShares` | SharedUsers[{Value, Type, Resolved}] (GET/PUT, not a queued upload) | `privateOrderShares` |
-
-**Not yet designed or implemented.** This is the next concrete task (see below).
+The client's **public AODP channel stays exactly as-is** — `MarketOrder`, `GoldPriceUpload`, `MarketHistoriesUpload`, `BanditEventUpload` keep uploading straight to `pow.*.albion-online-data.com` like today. No client changes needed for this, and TrimsSilver-Server does **not** need to ingest/store this data. Instead, TrimsSilver-Server will act as a **reader** of AODP's public REST API (`https://<region>.albion-online-data.com/api/v2/stats/...`, no auth needed) to fetch current/historical prices — both what we contribute and what everyone else contributes. This reader/cache service is not built yet (see Next steps).
 
 ## GitHub issues (source of truth for granular tracking)
 
 Server (`Rabhynoide/TrimsSilver-Server`):
-- #1 — Endpoint d'ingestion des données de marché — **needs a scope-revision comment**: only the 7 private types above, not public AODP data (see architecture decision).
+- #1 — Endpoint d'ingestion des données de marché — **implemented this session** (schema + all 7 routes, see above); still needs a scope-revision comment on GitHub itself (not done from this session) noting it only covers the 7 private types, not public AODP data.
 - #2 — Dashboard utilisateur
 - #3 — Optimiser l'image Docker (currently ships full `node_modules` incl. dev deps for reliability; revisit once there's more to containerize)
 
@@ -61,13 +88,15 @@ Client (`Rabhynoide/TrimsSilver-Client`):
 ## Environment gotchas hit on the original dev machine
 
 - **NuGet.Config**: the machine's global `%APPDATA%\NuGet\NuGet.Config` had an *empty* `<packageSources>` list, causing `dotnet restore` to fail with `NU1100` on every single package (even base .NET runtime packs). Not a code issue. Fix: `dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org`. Check this first on a new machine if `dotnet restore`/`dotnet build` on `TrimsSilver-Client` fails everywhere at once.
-- **Local Postgres without Docker**: `npx prisma dev --detach` (inside `TrimsSilver-Server`) starts a zero-install local Postgres-compatible instance and prints a connection string — put that in `.env`'s `DATABASE_URL`, then `npx prisma db push` (or `npm run db:migrate` if there's a real dev DB reachable for the shadow-database diffing `migrate dev` needs).
+- **Local Postgres without Docker**: `npx prisma dev --detach` (inside `TrimsSilver-Server`) starts a zero-install local Postgres-compatible instance and prints a connection string — put that in `.env`'s `DATABASE_URL`.
+- **`prisma migrate dev` fights with `prisma dev`'s auto-sync.** The local `prisma dev` server auto-applies whatever's in `prisma/migrations/` to both the main *and* shadow database on every start/reconnect, but without populating `_prisma_migrations` history — so `migrate dev` reliably fails with **P3005** ("schema not empty") or **P3006/P3018** ("relation already exists" on the shadow DB) even against a supposedly fresh instance. What actually worked: `npx prisma migrate resolve --applied <last-migration-name>` to baseline the history table against the already-applied schema, then generate the new migration's SQL directly with `npx prisma migrate diff --from-config-datasource --to-schema ./prisma/schema.prisma --script > prisma/migrations/<name>/migration.sql` (bypasses the shadow DB entirely), apply it with `npx prisma db execute --file <that file>`, then `npx prisma migrate resolve --applied <name>` again to record it. `prisma migrate reset --force` requires explicit user consent — Prisma itself blocks AI agents from running it unattended.
 - **`.env` is gitignored** (correctly) — a new machine needs its own copy from `.env.example`, with a real Discord OAuth app's `AUTH_DISCORD_ID`/`AUTH_DISCORD_SECRET` (create one at https://discord.com/developers/applications if starting fresh, redirect URI `{AUTH_URL}/api/auth/callback/discord`) and a generated `AUTH_SECRET` (`node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`).
 - **`gh` CLI** wasn't installed originally; needed for issue tracking (`winget install GitHub.cli`, then `gh auth login` interactively in a real terminal — Claude Code can't do the browser login step for you).
+- **Portainer stack env vars**: see "Deployment" above — use Portainer's stack env var UI, not a `.env` file, for `AUTH_SECRET`/`AUTH_URL`/`AUTH_DISCORD_ID`/`AUTH_DISCORD_SECRET`.
 
 ## Next steps, in the order they were being tackled
 
-1. Design the Prisma schema for the 7 private upload types above (each linked to `User` via the Discord-authenticated account) and implement the ingest endpoints.
-2. Client issue #3: Discord OAuth flow in `AuthService.cs` — mirrors the existing Google/Firebase pattern (open system browser, `HttpListener` on localhost catches the redirect) but against TrimsSilver-Server's Discord flow instead.
-3. Client issue #2 (reduced scope): point the private-channel settings (`TrimsSilverAuthClientId`, `TrimsSilverIngestApiBase`, etc. in `DefaultAppSettings.json`) at the real TrimsSilver-Server deployment.
+1. Client issue #3: Discord OAuth flow in `AuthService.cs` — mirrors the existing Google/Firebase pattern (open system browser, `HttpListener` on localhost catches the redirect) but against TrimsSilver-Server's Discord flow instead. Needs to end with the server minting an `ApiToken` (via the existing `POST /api/tokens`, or a purpose-built redirect page) and handing the raw token to the client's local listener — that hand-off page doesn't exist yet, only the token-minting endpoint itself.
+2. Client issue #2 (reduced scope): point the private-channel settings (`TrimsSilverAuthClientId`, `TrimsSilverIngestApiBase`, etc. in `DefaultAppSettings.json`) at `https://trimssilver.trimards-island.org/api` — no server-side path changes needed, the 7 ingest routes already match the old AFM relative paths exactly.
+3. `PrivateOrderShares` identifier resolution (matching a shared value like a Discord tag to a real TrimsSilver account) — currently unimplemented, everything comes back `resolved: false`.
 4. Later, lower priority: an AODP public-data reader/cache service on the server (per the architecture decision above) — not blocking anything else.
