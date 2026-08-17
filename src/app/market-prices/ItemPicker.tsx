@@ -3,19 +3,13 @@
 import { useMemo, useState } from "react";
 import type { CatalogItem, SelectedItem } from "./types";
 import { itemId } from "./types";
+import CategoryTree from "./CategoryTree";
 
 const MAX_SELECTED_ITEMS = 100;
 const MAX_SEARCH_RESULTS = 30;
 
 function toggle<T>(set: T[], value: T): T[] {
   return set.includes(value) ? set.filter((v) => v !== value) : [...set, value];
-}
-
-function shopCategoryLabel(category: string): string {
-  return category
-    .split(/[_\s]+/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
 }
 
 type Variant = { catalogItem: CatalogItem; enchant: number };
@@ -29,19 +23,14 @@ export default function ItemPicker({
   selectedItems: SelectedItem[];
   onChange: (items: SelectedItem[]) => void;
 }) {
-  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<Set<string>>(new Set());
   const [tierFilter, setTierFilter] = useState<number[]>([]);
   const [enchantFilter, setEnchantFilter] = useState<number[]>([]);
   const [search, setSearch] = useState("");
 
-  const categories = useMemo(
-    () => [...new Set(catalog.map((item) => item.shopCategory))].sort(),
-    [catalog],
-  );
-
   const filteredCatalog = useMemo(() => {
     return catalog.filter((item) => {
-      if (categoryFilter.length > 0 && !categoryFilter.includes(item.shopCategory)) return false;
+      if (categoryFilter.size > 0 && !categoryFilter.has(item.uniqueName)) return false;
       if (tierFilter.length > 0 && !tierFilter.includes(item.tier)) return false;
       return true;
     });
@@ -102,7 +91,7 @@ export default function ItemPicker({
   }
 
   function clearFilters() {
-    setCategoryFilter([]);
+    setCategoryFilter(new Set());
     setTierFilter([]);
     setEnchantFilter([]);
     setSearch("");
@@ -115,23 +104,10 @@ export default function ItemPicker({
       </h2>
 
       <div className="flex flex-wrap gap-4">
-        <fieldset className="flex flex-col gap-1">
-          <legend className="text-xs text-neutral-400 mb-1">
-            Shop Categories ({categoryFilter.length}/{categories.length})
-          </legend>
-          <div className="max-h-32 overflow-y-auto rounded border border-neutral-700 p-2 flex flex-col gap-1 min-w-48">
-            {categories.map((category) => (
-              <label key={category} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={categoryFilter.includes(category)}
-                  onChange={() => setCategoryFilter(toggle(categoryFilter, category))}
-                />
-                {shopCategoryLabel(category)}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-400 mb-1">Shop Categories</span>
+          <CategoryTree catalog={catalog} selected={categoryFilter} onChange={setCategoryFilter} />
+        </div>
 
         <fieldset className="flex flex-col gap-1">
           <legend className="text-xs text-neutral-400 mb-1">Tiers</legend>
