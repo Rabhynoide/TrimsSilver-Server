@@ -1,10 +1,20 @@
-import { createHash } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { User } from "@/generated/prisma/client";
 
 export function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
+}
+
+// Shared by POST /api/tokens (dashboard) and /cli-auth (desktop client sign-in redirect).
+// The raw token is only ever returned here; only its hash is stored.
+export async function mintApiToken(userId: string, label: string | null = null) {
+  const rawToken = randomBytes(32).toString("base64url");
+  const apiToken = await prisma.apiToken.create({
+    data: { userId, tokenHash: hashToken(rawToken), label },
+  });
+  return { id: apiToken.id, token: rawToken, createdAt: apiToken.createdAt };
 }
 
 type ApiAuthResult = { user: User; response?: undefined } | { user: null; response: NextResponse };

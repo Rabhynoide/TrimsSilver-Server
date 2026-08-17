@@ -1,11 +1,11 @@
-import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { hashToken } from "@/lib/api-auth";
+import { mintApiToken } from "@/lib/api-auth";
 
 // Mints a bearer token for the desktop client, tied to the signed-in Discord session.
-// Stands in for a full OAuth-device flow until client issue #3 lands.
+// The /cli-auth page covers the client's actual sign-in flow; this route is for
+// manually issuing/managing tokens from a browser (e.g. a future dashboard).
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -15,17 +15,8 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const label = typeof body?.label === "string" ? body.label : null;
 
-  const rawToken = randomBytes(32).toString("base64url");
-  const apiToken = await prisma.apiToken.create({
-    data: {
-      userId: session.user.id,
-      tokenHash: hashToken(rawToken),
-      label,
-    },
-  });
-
-  // The raw token is only ever returned here; only its hash is stored.
-  return NextResponse.json({ id: apiToken.id, token: rawToken, createdAt: apiToken.createdAt });
+  const apiToken = await mintApiToken(session.user.id, label);
+  return NextResponse.json(apiToken);
 }
 
 export async function GET() {
