@@ -94,8 +94,20 @@ So that client issue #2 only needs a settings change (`TrimsSilverIngestApiBase`
 All tested end-to-end against a local dev DB with curl (auth rejection, successful writes, and upsert idempotency all verified working).
 
 ### Deliberately not done yet (by design, not forgotten)
-- Client UI text/log strings that still literally describe the AFM backend (legendary item marketplace, EMV/achievements upload messages, log lines like "Successfully sent ... to AFM EMV endpoint" seen in the confirmation above) — was deliberately left alone while the client genuinely still uploaded there. **Now unblocked**, since the client points at the new backend as of this session (see Next steps).
 - README screenshots/full content pass and new icon/logo artwork — design work, not code, out of scope for the rebrand pass.
+
+### Client UI/log text rebranded — and a real bug found along the way (2026-08-18)
+Went through every remaining "AFM" string in the client (`TrimsSilverUploader.cs` and everything it feeds, the app's own self-name in log lines and Settings/Dashboard text, the backup/restore instructions) and renamed the ones that now genuinely target TrimsSilver-Server. Deliberately left "AFM" wording alone in Portfolio, the Legendary item marketplace, and `OpenAFMWebsite()`/the AFM Discord link — those still call the real `api.albionfreemarket.com`, so the text was accurate, not stale. Commit `bc07800` on `TrimsSilver-Client`.
+
+Found and fixed a real correctness bug while at it, unrelated to branding: the backup-restore instructions (`SettingsView.axaml`, `README.md`) referenced a database filename of `afmdataclient.db`, but `AppData.cs` has written `trimssilver.db` since the original rebrand — anyone following those steps literally would look for a file that no longer exists.
+
+**Bigger finding**: verifying which backend each "AFM" string actually pointed at surfaced a real regression from the auth rewrite. `PortfolioUploadService`, `LegendarySaleService`, and `ItemEstimatedMarketValueBackendLoader` all send `authService.CurrentFirebaseUser.IdToken` as a Bearer token to the *real* AFM backend (`TrimsSilverBackendApiBase`/`TrimsSilverTopItemsApiBase`, still `api.albionfreemarket.com`). Since the Discord/TrimsSilver auth rewrite, that token is a TrimsSilver-only opaque token AFM has never issued and can't validate — those three features would 401 on every real request. **User decision: disable them for now** rather than leave them silently broken. Commit `fbd86a3` adds a single `FeatureFlags.AfmIntegrationEnabled = false` switch (in `AlbionDataAvalonia/Settings/FeatureFlags.cs`) that:
+- Short-circuits Portfolio uploads before any network call (updated the "sign in to AFM" messaging, since being signed in wouldn't help anymore).
+- Disables the Legendary view's "List for sale"/"Update price"/"Relist" actions with a clear status message — the item **tracking** table itself (locally captured, not AFM-dependent) is untouched and still fully functional.
+- Disables the "Add to Portfolio" buttons in Trades/Gathering directly instead of letting them fail after a click.
+- Stops `ItemEstimatedMarketValueBackendLoader` from queuing AFM lookups at all.
+
+**Still undecided, needs a real product decision, not a code fix**: whether to (a) leave these retired permanently as AFM-branded premium features that don't fit an independent TrimsSilver, (b) reintroduce a second, parallel Google/Firebase auth flow just for these three features alongside the new Discord flow, or (c) something else. Flip `FeatureFlags.AfmIntegrationEnabled` back to `true` only once whichever auth path they'll actually use again is real.
 
 ### Key architecture decision (2026-08-17)
 The client's **public AODP channel stays exactly as-is** — `MarketOrder`, `GoldPriceUpload`, `MarketHistoriesUpload`, `BanditEventUpload` keep uploading straight to `pow.*.albion-online-data.com` like today. No client changes needed for this, and TrimsSilver-Server does **not** need to ingest/store this data. Instead, TrimsSilver-Server will act as a **reader** of AODP's public REST API (`https://<region>.albion-online-data.com/api/v2/stats/...`, no auth needed) to fetch current/historical prices — both what we contribute and what everyone else contributes. This reader/cache service is not built yet (see Next steps).
@@ -157,9 +169,9 @@ Two levels: a fast server-only check (no client build, no Discord account needed
 
 ## Next steps, in the order they were being tackled
 
-1. `PrivateOrderShares` identifier resolution (matching a shared value like a Discord tag to a real TrimsSilver account) — currently unimplemented, everything comes back `resolved: false`.
-2. A dashboard page to list/revoke `ApiToken`s (lost/stolen device scenario currently has no UI, only raw DB access).
-3. `flipperOrders`, `playercount`, and `be/festivities` haven't been seen working live yet (just not exercised by gameplay during the test session) — worth a quick real-world confirmation next time the client runs, though there's no reason to expect them to behave differently from the three routes already confirmed.
-4. Close out client issues #2 and #3 on GitHub now that they're verified.
-5. Client UI text/log strings still describing the old AFM backend (see "Deliberately not done yet" above) — now unblocked since the client actually points at the new backend.
+1. **Decide the fate of Portfolio / Legendary marketplace / AFM EMV lookups** (see "Client UI/log text rebranded" above) — currently disabled via `FeatureFlags.AfmIntegrationEnabled = false` in the client. This is a product decision (retire vs. reintroduce a second Google/Firebase auth flow vs. something else), not something to solve with more code without direction.
+2. `PrivateOrderShares` identifier resolution (matching a shared value like a Discord tag to a real TrimsSilver account) — currently unimplemented, everything comes back `resolved: false`.
+3. A dashboard page to list/revoke `ApiToken`s (lost/stolen device scenario currently has no UI, only raw DB access).
+4. `flipperOrders`, `playercount`, and `be/festivities` haven't been seen working live yet (just not exercised by gameplay during the test session) — worth a quick real-world confirmation next time the client runs, though there's no reason to expect them to behave differently from the three routes already confirmed.
+5. Close out client issues #2 and #3 on GitHub now that they're verified.
 6. Later, lower priority: an AODP public-data reader/cache service on the server (per the architecture decision above) — not blocking anything else.
