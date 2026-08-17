@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth, signIn, signOut } from "@/auth";
 
 export default async function Home() {
@@ -6,6 +7,10 @@ export default async function Home() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
       <h1 className="text-2xl font-semibold">TrimsSilver</h1>
+
+      <Link href="/market-prices" className="text-sm text-neutral-400 hover:text-neutral-100">
+        Market Prices →
+      </Link>
 
       {session?.user ? (
         <div className="flex flex-col items-center gap-4">

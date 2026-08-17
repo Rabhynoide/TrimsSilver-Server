@@ -32,6 +32,7 @@ model User {
   privateOrderSharesOwned       PrivateOrderShare[]        @relation("PrivateOrderSharesOwned")
   privateOrderSharesResolvedFor PrivateOrderShare[]        @relation("PrivateOrderSharesResolved")
   apiTokens                     ApiToken[]
+  marketPriceFavorites          MarketPriceFavorite[]
 }
 
 // Bearer token the desktop client sends on ingest requests, minted by a signed-in browser
@@ -250,4 +251,24 @@ model PrivateOrderShare {
   updatedAt DateTime @updatedAt
 
   @@unique([ownerId, value])
+}
+
+// --- Web UI data (not part of the client's 7 private upload types) ---
+
+// A saved Market Prices Price Checker configuration (selected items, cities, display
+// options). Browser-only feature, gated on the Auth.js session cookie like the rest of
+// the site — not fed by the desktop client's bearer-token ingest routes.
+model MarketPriceFavorite {
+  id     String  @id @default(cuid())
+  name   String
+  note   String?
+  config Json
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
