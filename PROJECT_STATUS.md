@@ -95,9 +95,11 @@ Server (`Rabhynoide/TrimsSilver-Server`):
 
 Client (`Rabhynoide/TrimsSilver-Client`):
 - #1 — Rebranding AFM → TrimsSilver — **closed**, done
-- #2 — Pointer le client vers TrimsSilver-Server — **scope reduced, and now the only remaining piece**: just flip `TrimsSilverIngestApiBase` to `https://trimssilver.trimards-island.org/api` in `DefaultAppSettings.json`
-- #3 — Remplacer l'auth Google/Firebase par Discord OAuth dans `AuthService.cs` — **implemented this session** (commit `dcbc19c`), not yet closed on GitHub, not yet end-to-end tested with a real account
+- #2 — Pointer le client vers TrimsSilver-Server — **implemented this session** (commit `eadc1ee`): `TrimsSilverIngestApiBase` now `https://trimssilver.trimards-island.org/api/` (trailing slash required, see commit message — `Uri` combining drops the last path segment without it). Not yet closed on GitHub.
+- #3 — Remplacer l'auth Google/Firebase par Discord OAuth dans `AuthService.cs` — **implemented this session** (commit `dcbc19c`), not yet closed on GitHub.
 - #4 — Reset du versioning client à 0.x
+
+**Both #2 and #3 are code-complete and pushed, but not yet tested end-to-end with a real Discord account and a running client** — no browser/GUI available in the session that built this. See "How to test the client/server link" below for the procedure to run on a real machine.
 
 ## Environment gotchas hit on the original dev machine
 
@@ -107,6 +109,37 @@ Client (`Rabhynoide/TrimsSilver-Client`):
 - **`.env` is gitignored** (correctly) — a new machine needs its own copy from `.env.example`, with a real Discord OAuth app's `AUTH_DISCORD_ID`/`AUTH_DISCORD_SECRET` (create one at https://discord.com/developers/applications if starting fresh, redirect URI `{AUTH_URL}/api/auth/callback/discord`) and a generated `AUTH_SECRET` (`node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`).
 - **`gh` CLI** wasn't installed originally; needed for issue tracking (`winget install GitHub.cli`, then `gh auth login` interactively in a real terminal — Claude Code can't do the browser login step for you).
 - **Portainer stack env vars**: see "Deployment" above — use Portainer's stack env var UI, not a `.env` file, for `AUTH_SECRET`/`AUTH_URL`/`AUTH_DISCORD_ID`/`AUTH_DISCORD_SECRET`.
+
+## How to test the client/server link
+
+Two levels: a fast server-only check (no client build, no Discord account needed beyond a browser sign-in), then the real end-to-end client test.
+
+### 1. Prerequisite: redeploy the Portainer stack
+`/cli-auth`, `/api/me`, and the 7 ingest routes are pushed to `main` but **won't exist on the live server until the Portainer stack is redeployed/rebuilt** from the latest commit. Do this first, or every step below will 404.
+
+### 2. Server-only check (fastest, proves the whole server side works)
+1. Open `https://trimssilver.trimards-island.org` in a browser, sign in with Discord.
+2. Open browser dev tools → Console, run:
+   ```js
+   const r = await fetch("/api/tokens", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+   console.log(await r.json()); // note the "token" value
+   ```
+3. In a terminal, validate it and try an ingest call:
+   ```bash
+   curl https://trimssilver.trimards-island.org/api/me -H "Authorization: Bearer <token>"
+   curl -X POST https://trimssilver.trimards-island.org/api/be/globalMultiplier \
+     -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+     -d '{"serverId":1,"globalMultiplier":1.1}'
+   ```
+   Both should return `200`/`{"ok":true}`. This alone confirms Discord sign-in, token minting, and the ingest pipeline all work in production — without touching the desktop client.
+
+### 3. Real end-to-end test with the desktop client
+1. Build & run `TrimsSilver-Client` (`AlbionDataAvalonia.Desktop` or the platform-specific startup project — see `TrimsSilver-Client/AGENTS.md`). It now ships with `TrimsSilverAuthUrl`/`TrimsSilverIngestApiBase` already pointed at the live server (see commits `dcbc19c`, `eadc1ee`).
+2. In the running app, go to the main view's **Authentication** section and click **Sign In**.
+3. This opens your system browser to `https://trimssilver.trimards-island.org/cli-auth?redirect_uri=http://localhost:5000/`. Sign in with Discord, then click **Autoriser**.
+4. The browser tab should show "TrimsSilver sign-in successful. You can close this window." — if instead you get a connection error on `localhost:5000`, the client's `HttpListener` isn't running/reachable (check the client is actually running and nothing else holds port 5000).
+5. Back in the client, the Authentication section should switch to the logged-in state (avatar/initials, upload options visible). Client logs (Serilog) should show `User signed in: ...`.
+6. To confirm data actually reaches the server: either open the game with the client capturing traffic and watch for successful upload log lines, or just re-run the `curl .../api/me` check from step 2 with the token the client now has stored locally (SQLite `UserAuth` table, `RefreshToken` column) — same validation, proves the client's stored token is accepted.
 
 ## Next steps, in the order they were being tackled
 
