@@ -9,6 +9,9 @@ Built feature by feature — no placeholder/empty pages, only what's actually wi
 ## What's implemented so far
 
 - Discord sign-in (Auth.js, database-backed sessions via Prisma/Postgres)
+- Bearer-token API auth for the desktop client: `/cli-auth` (browser hand-off, mints a token) and `/api/tokens` (manual minting), validated via `/api/me`
+- 7 private data ingest endpoints matching the client's uploads: market orders, player count, achievements, global multiplier, festivities, item estimated market values, private order shares
+- [`/market-prices`](https://trimssilver.trimards-island.org/market-prices): a live Albion Online price checker (current + averaged prices from the public AODP API, no data stored server-side) with a category/tier/enchantment item browser and saved favorites for signed-in users
 
 ## Local development
 
@@ -40,3 +43,13 @@ This starts a `db` (Postgres) and `app` (Next.js, migrations applied automatical
 ## Database schema changes
 
 Never edit `prisma/migrations/*` by hand. After changing `prisma/schema.prisma`, run `npm run db:migrate` to generate and apply a new migration.
+
+## Market item catalog
+
+`src/data/item-catalog.json` (used by `/market-prices`) is a static, committed snapshot of Albion's item data, not fetched at runtime. Regenerate it after a major game patch with:
+
+```bash
+npm run catalog:build
+```
+
+This pulls the latest data from [`ao-bin-dumps`](https://github.com/broderickhyman/ao-bin-dumps) and rewrites the file — review the diff and commit it like any other change.
