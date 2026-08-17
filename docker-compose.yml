@@ -18,14 +18,14 @@ services:
     build: .
     restart: unless-stopped
     env_file:
-      - .env
+      - stack.env
     environment:
       DATABASE_URL: postgresql://trimssilver:trimssilver@db:5432/trimssilver?schema=public
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "9087:3000"
 
 volumes:
   db-data:
