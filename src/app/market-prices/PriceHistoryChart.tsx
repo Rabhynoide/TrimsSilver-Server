@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { itemId, QUALITY_LABELS } from "./types";
 import type { AodpRegion, HistoryPoint, SelectedItem } from "./types";
+import { readJsonResponse } from "@/lib/http";
 
 const WIDTH = 640;
 const HEIGHT = 200;
@@ -64,7 +65,7 @@ export default function PriceHistoryChart({
 
     try {
       const res = await fetch(`/api/market/history?${params.toString()}`);
-      const data = await res.json();
+      const data = await readJsonResponse<{ history?: HistoryPoint[]; error?: string; detail?: string }>(res);
       if (requestIdRef.current !== requestId) return;
       if (!res.ok) {
         setError(data.detail ?? data.error ?? `Request failed (${res.status})`);

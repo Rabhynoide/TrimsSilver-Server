@@ -56,7 +56,7 @@ export async function fetchCurrentPrices(
   url.searchParams.set("locations", locations.join(","));
   url.searchParams.set("qualities", qualities.join(","));
 
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(15_000) });
   if (!res.ok) {
     throw new Error(`AODP prices request failed: ${res.status} ${res.statusText}`);
   }
@@ -81,7 +81,7 @@ export async function fetchAveragePrices(
   url.searchParams.set("qualities", qualities.join(","));
   url.searchParams.set("time-scale", "24");
 
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(15_000) });
   if (!res.ok) {
     throw new Error(`AODP history request failed: ${res.status} ${res.statusText}`);
   }
@@ -127,7 +127,7 @@ export async function fetchPriceHistorySeries(
   url.searchParams.set("qualities", String(quality));
   url.searchParams.set("time-scale", "24");
 
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(15_000) });
   if (!res.ok) {
     throw new Error(`AODP history request failed: ${res.status} ${res.statusText}`);
   }

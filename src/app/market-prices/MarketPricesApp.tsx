@@ -13,6 +13,7 @@ import {
   QUALITY_LEVELS,
 } from "./types";
 import type { CatalogItem, Favorite, PriceCheckerConfig, PriceRow, SelectedItem } from "./types";
+import { readJsonResponse } from "@/lib/http";
 
 type Tab = "checker" | "favorites";
 
@@ -71,7 +72,7 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
         params.set("averageDays", String(cfg.averageDays));
       }
       const res = await fetch(`/api/market/prices?${params.toString()}`);
-      const data = await res.json();
+      const data = await readJsonResponse<{ prices?: PriceRow[]; error?: string; detail?: string }>(res);
       if (!res.ok) {
         setPricesError(data.detail ?? data.error ?? `Request failed (${res.status})`);
         setPrices([]);

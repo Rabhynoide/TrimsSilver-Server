@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CITIES } from "../market-prices/types";
 import type { PriceRow } from "../market-prices/types";
+import { readJsonResponse } from "@/lib/http";
 import type { FoodItem, FarmingRecipe, FarmingSpecDef } from "./calc";
 import { isAnimalRecipe, isPlantRecipe } from "./calc";
 import {
@@ -109,7 +110,7 @@ export default function FarmingApp({ isSignedIn }: { isSignedIn: boolean }) {
         params.set("averageDays", String(config.averageDays));
       }
       const res = await fetch(`/api/market/prices?${params.toString()}`);
-      const data = await res.json();
+      const data = await readJsonResponse<{ prices?: PriceRow[]; error?: string; detail?: string }>(res);
       if (!res.ok) {
         setPricesError(data.detail ?? data.error ?? `Request failed (${res.status})`);
         setPrices([]);
