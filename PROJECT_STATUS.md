@@ -123,6 +123,7 @@ Server (`Rabhynoide/TrimsSilver-Server`):
 - #6 — Service de lecture des données publiques AODP — open, narrowed. Comment posted: the live-proxy read is done (Market Prices' `GET /api/market/prices`), what's left is server-side caching/storage, not just reading.
 - #7 — Market Prices : vue détaillée d'un item + historique de prix (graphique) — **closed**. Click any price cell to chart it; see "Market Prices page" below.
 - #8 — Farming Calculator : territoires Outlands + élevage Beast/montures rares — new, open. Deliberately cut from the V1 scope; see "Farming & Breeding Calculator" below.
+- #9 — Farming Calculator : lignes séparées par choix de produit animal (ex. Oie viande vs œufs) — new, open. Deliberately deferred, noted by the user; see "Follow-up fixes and refinements" below.
 
 Client (`Rabhynoide/TrimsSilver-Client`):
 - #1 — Rebranding AFM → TrimsSilver — **closed**, done
@@ -131,7 +132,7 @@ Client (`Rabhynoide/TrimsSilver-Client`):
 - #4 — Reset du versioning client à 0.x — open. Comment posted noting its prerequisite (rebranding, #1) is done.
 - #5 — Portfolio, marketplace Legendary et lookups EMV AFM cassés (401) — new, open. Full writeup of the "Client UI/log text rebranded" finding above; this is where the actual product decision should get tracked/discussed, not just here.
 
-All issues (server #1-8, client #1-5) reflect this doc as of 2026-08-18 — GitHub is the source of truth for granular tracking, this doc for the "why" behind each.
+All issues (server #1-9, client #1-5) reflect this doc as of 2026-08-18 — GitHub is the source of truth for granular tracking, this doc for the "why" behind each.
 
 ## Environment gotchas hit on the original dev machine
 
@@ -215,6 +216,22 @@ Added a public-facing `/farming` page, the second real data-heavy feature after 
 - **Real bug caught and fixed during verification**: the loot-amount parser split `"@amount"` on `-` and destructured `[min, max]`, but single-value amounts (e.g. Earthworm's `"1"`) leave `max` as `undefined` — and `Number.isNaN(undefined)` is `false` (only real `NaN` triggers it), so the fallback-to-min never ran and `undefined` silently propagated through `JSON.stringify` (key just vanished) and then through `averageAmount()`'s `(min+max)/2` as `NaN`, making every crop/herb row's revenue and profit show `NaN` in the live UI (all of them have at least one single-amount bonus drop). Fixed by checking `parts.length` instead of `Number.isNaN`.
 - **Confirmed working live via Playwright MCP** in this session: Settings tab renders location bonus cards matching the user's screenshot exactly; Results tab loads real AODP prices with correct sort/expand; setting a spec to 100 correctly dropped focus cost 1000→125 and multiplied profit/focus accordingly; switching to Manual price mode zeroed out then live-recalculated on entry with the missing-price field list updating dynamically. **Not exercised in this session** (needs the user's own Discord sign-in): specs auto-fill from a real synced character, and Settings save/load round-trip — both implemented and type-checked against the real schema, but not clicked through with a live session.
 
+### Follow-up fixes and refinements (later on 2026-08-18)
+
+A second round, driven by the user actually using the tool and — critically — cross-checking it against real in-game screenshots, which caught two genuine formula bugs no amount of wiki-reading would have surfaced.
+
+- **Results split into three sections** (Agriculture/Plantes/Élevage in `ResultsTable.tsx`) instead of one flat table, each independently sortable, with fixed identical column widths (`table-fixed` + shared width classes) so the columns line up vertically across all three.
+- **"Use Focus" toggle** (`FarmingConfig.useFocus`): off means results use only the tier base yield and location bonus, zero Focus cost — no spec bonus applied at all.
+- **NPC merchant price fallback**: every seed/baby has a fixed NPC buy price (`craftingrequirements.@silver` in the raw item data, matches the wiki's "Price Per Seed/Offspring" column exactly) — now used whenever no live market price exists, with a small "NPC" badge and the source spelled out in the expanded row ("Input price: X silver (NPC merchant/Market)").
+- **Two real formula corrections, found by the user comparing the tool's numbers against the actual in-game farm-plot tooltip** (Firetouched Mullein Seeds at Thetford, two screenshots — watered vs. not):
+  1. The Royal-city "Local" +10% bonus applies to **output amount** ("Production de produits" — the harvest quantity), not to seed/offspring return chance ("Production de graines") as originally modeled. Moved from `returnFraction()` to `averageAmount()`.
+  2. The watering/nurture yield bonus (`@activefarmbonus`) is **not scaled by spec level** — it's a flat amount granted in full whenever watering happens; the screenshot's "Arrosage: +17.78%" matched the raw item value exactly, not some fraction of it. Only the Focus *cost* of watering scales with spec (1000→125, confirmed accurate against the same screenshot: a ~91-spec character's cost matched the linear formula almost exactly). `nurtureBonus()`/spec-scaling removed from `returnFraction()`.
+  - Also brought animal breeding in line with the crop model: baby→grown animals without a recurring product were valuing expected offspring as *revenue* (at baby price) instead of discounting the *input cost*, unlike seeds. Now symmetric — the return chance only ever discounts cost, never adds to revenue, matching the user's stated principle ("I only sell the product").
+  - Every row's expanded detail now spells out the exact math (return chance, net units bought/cycle, input price + source) so this class of question is self-answering from the UI.
+- **Production slots** setting (`FarmingConfig.slots`, default 9 — "1 field/pasture = 9 slots") drives a new **Total Profit/Day** column (`profitPerDay × slots`) for an actual-earnings estimate, not just per-slot comparison.
+- **Price staleness indicator**: prices ≥12h old (current-mode only — averages/manual/EMV have no single "age") get a red "⟳ Xh" badge on the row, plus a compact "⟳ N items need a refresh" badge next to the Refresh Prices button whose hover tooltip lists every stale item and its age (iterated from an initial always-visible banner, which the user found too space-hungry — a hover summary was the better fit).
+- **Deliberately deferred (noted by the user, not filed as a blocker)**: some animals can be raised for more than one purpose in-game — e.g. Geese for meat (sell the grown animal) vs. for eggs (keep feeding for the recurring product) — and the calculator currently only ever shows one row per animal (the product cycle when one exists, otherwise the growth cycle), picking a side rather than showing both as separate comparable rows. Tracked as server issue #9.
+
 ## Next steps, in the order they were being tackled
 
 1. **Decide the fate of Portfolio / Legendary marketplace / AFM EMV lookups** — client issue #5, currently disabled via `FeatureFlags.AfmIntegrationEnabled = false`. This is a product decision (retire vs. reintroduce a second Google/Firebase auth flow vs. something else), not something to solve with more code without direction.
@@ -224,3 +241,4 @@ Added a public-facing `/farming` page, the second real data-heavy feature after 
 5. Later, lower priority: an AODP public-data reader/cache service **with actual caching/storage** on the server — server issue #6 narrows to just that now that both live-proxy routes (prices + history) are done.
 6. Verify the Farming & Breeding Calculator's signed-in flows live: specs auto-fill from a real synced character's `AchievementSnapshot`, and Settings save/load round-trips — not exercised in the session that built the feature (no live Discord session in the automated browser).
 7. Farming Calculator fast-follows, if wanted — server issue #8: Outlands farm territories (per-territory biome/quality bonuses instead of the fixed Royal-city table — deliberately cut, no small stable data source for it) and Beast/rare-mount breeding (deliberately cut, no clean AODP sell path).
+8. Farming Calculator: split animals with more than one use (e.g. Goose meat vs. eggs) into separate comparable result rows instead of always picking the product cycle when one exists — server issue #9, noted by the user, not blocking.

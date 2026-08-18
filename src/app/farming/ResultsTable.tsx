@@ -8,6 +8,7 @@ import {
   isPlantRecipe,
   nutritionNeeded,
   specLevelForRecipe,
+  type AgeLookup,
   type EvalResult,
   type FarmingRecipe,
   type FarmingSpecDef,
@@ -15,6 +16,8 @@ import {
   type PriceLookup,
 } from "./calc";
 import type { FarmingConfig } from "./types";
+
+const STALE_PRICE_HOURS = 12;
 
 function recipeKey(recipe: FarmingRecipe): string {
   return isPlantRecipe(recipe) ? recipe.seedUniqueName : recipe.babyUniqueName;
@@ -24,7 +27,7 @@ function recipeIconId(recipe: FarmingRecipe): string {
   return recipeKey(recipe);
 }
 
-type SortKey = "name" | "tier" | "profitPerDay" | "profitPerFocus" | "famePerDay";
+type SortKey = "name" | "tier" | "profitPerDay" | "totalProfitPerDay" | "profitPerFocus" | "famePerDay";
 
 function money(value: number): string {
   return Math.round(value).toLocaleString();
@@ -90,19 +93,19 @@ function RecipeRow({
         onClick={onToggle}
         className="cursor-pointer divide-x divide-navy-700 border-b border-navy-800 hover:bg-navy-800/50"
       >
-        <td className="px-2 py-1.5">
-          <div className="flex items-center gap-2">
+        <td className="w-64 px-2 py-1.5">
+          <div className="flex min-w-0 items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`https://render.albiononline.com/v1/item/${recipeIconId(recipe)}.png`}
               alt=""
-              className="h-7 w-7"
+              className="h-7 w-7 shrink-0"
             />
-            <span className="text-sm text-navy-100">{recipe.name}</span>
+            <span className="truncate text-sm text-navy-100">{recipe.name}</span>
             {result.inputPriceSource === "npc" && (
               <span
                 title="No market price for the seed/baby — using the fixed NPC farming-merchant price instead"
-                className="rounded bg-navy-600 px-1 text-[10px] text-navy-100"
+                className="shrink-0 rounded bg-navy-600 px-1 text-[10px] text-navy-100"
               >
                 NPC
               </span>
@@ -110,31 +113,47 @@ function RecipeRow({
             {hasMissingPrices && (
               <span
                 title={`Missing price data: ${result.missingPrices.join(", ")}`}
-                className="rounded bg-amber-800 px-1 text-[10px] text-amber-100"
+                className="shrink-0 rounded bg-amber-800 px-1 text-[10px] text-amber-100"
               >
                 !
               </span>
             )}
+            {result.maxPriceAgeHours != null && result.maxPriceAgeHours >= STALE_PRICE_HOURS && (
+              <span
+                title={`Oldest price used is ${result.maxPriceAgeHours.toFixed(1)}h old — consider refreshing`}
+                className="shrink-0 rounded bg-red-900 px-1 text-[10px] text-red-100"
+              >
+                ⟳ {Math.round(result.maxPriceAgeHours)}h
+              </span>
+            )}
           </div>
         </td>
-        <td className="px-2 py-1.5 text-center text-sm text-navy-300">{recipe.tier}</td>
-        <td className="px-2 py-1.5 text-right text-sm text-navy-300">{money(result.costPerCycle)}</td>
-        <td className="px-2 py-1.5 text-right text-sm text-navy-300">{money(result.revenuePerCycle)}</td>
+        <td className="w-14 px-2 py-1.5 text-center text-sm text-navy-300">{recipe.tier}</td>
+        <td className="w-24 px-2 py-1.5 text-right text-sm text-navy-300">{money(result.costPerCycle)}</td>
+        <td className="w-28 px-2 py-1.5 text-right text-sm text-navy-300">{money(result.revenuePerCycle)}</td>
         <td
-          className={`px-2 py-1.5 text-right text-sm font-semibold ${
+          className={`w-24 px-2 py-1.5 text-right text-sm font-semibold ${
             result.profitPerDay >= 0 ? "text-green-400" : "text-red-400"
           }`}
         >
           {money(result.profitPerDay)}
         </td>
-        <td className="px-2 py-1.5 text-right text-sm text-navy-300">
+        <td
+          className={`w-32 px-2 py-1.5 text-right text-sm font-semibold ${
+            result.profitPerDay >= 0 ? "text-green-400" : "text-red-400"
+          }`}
+          title={`${config.slots} slots × ${money(result.profitPerDay)}/day`}
+        >
+          {money(result.profitPerDay * config.slots)}
+        </td>
+        <td className="w-24 px-2 py-1.5 text-right text-sm text-navy-300">
           {result.profitPerFocus != null ? result.profitPerFocus.toFixed(2) : "-"}
         </td>
-        <td className="px-2 py-1.5 text-right text-sm text-navy-300">{money(result.famePerDay)}</td>
+        <td className="w-20 px-2 py-1.5 text-right text-sm text-navy-300">{money(result.famePerDay)}</td>
       </tr>
       {expanded && (
         <tr className="border-b border-navy-800 bg-navy-900/60">
-          <td colSpan={7} className="px-4 py-3">
+          <td colSpan={8} className="px-4 py-3">
             <div className="flex flex-col gap-1">
               <p className="text-xs text-navy-400">
                 Focus per cycle: {result.focusCostPerCycle} · Cycles/day: {result.cyclesPerDay.toFixed(2)}
@@ -207,6 +226,8 @@ export default function ResultsTable({
   onChange,
   buyPriceOf,
   sellPriceOf,
+  buyPriceAgeOf,
+  sellPriceAgeOf,
   foods,
   loading,
   onRefresh,
@@ -217,6 +238,8 @@ export default function ResultsTable({
   onChange: (updater: (c: FarmingConfig) => FarmingConfig) => void;
   buyPriceOf: PriceLookup;
   sellPriceOf: PriceLookup;
+  buyPriceAgeOf: AgeLookup;
+  sellPriceAgeOf: AgeLookup;
   foods: FoodItem[];
   loading: boolean;
   onRefresh: () => void;
@@ -235,6 +258,8 @@ export default function ResultsTable({
         premium: config.premium,
         sellPriceOf,
         buyPriceOf,
+        sellPriceAgeOf,
+        buyPriceAgeOf,
         foods,
       });
       return { recipe, result };
@@ -248,6 +273,8 @@ export default function ResultsTable({
     config.premium,
     sellPriceOf,
     buyPriceOf,
+    sellPriceAgeOf,
+    buyPriceAgeOf,
     foods,
   ]);
 
@@ -258,13 +285,15 @@ export default function ResultsTable({
       if (sortKey === "name") cmp = a.recipe.name.localeCompare(b.recipe.name);
       else if (sortKey === "tier") cmp = a.recipe.tier - b.recipe.tier;
       else if (sortKey === "profitPerDay") cmp = a.result.profitPerDay - b.result.profitPerDay;
+      else if (sortKey === "totalProfitPerDay")
+        cmp = a.result.profitPerDay * config.slots - b.result.profitPerDay * config.slots;
       else if (sortKey === "profitPerFocus")
         cmp = (a.result.profitPerFocus ?? -Infinity) - (b.result.profitPerFocus ?? -Infinity);
       else if (sortKey === "famePerDay") cmp = a.result.famePerDay - b.result.famePerDay;
       return sortDesc ? -cmp : cmp;
     });
     return copy;
-  }, [rows, sortKey, sortDesc]);
+  }, [rows, sortKey, sortDesc, config.slots]);
 
   function toggleSort(key: SortKey) {
     if (key === sortKey) {
@@ -294,6 +323,15 @@ export default function ResultsTable({
     { kind: "animal", label: "Élevage" },
   ];
 
+  const staleItems = useMemo(() => {
+    return rows
+      .filter(
+        (r): r is typeof r & { result: { maxPriceAgeHours: number } } =>
+          r.result.maxPriceAgeHours != null && r.result.maxPriceAgeHours >= STALE_PRICE_HOURS,
+      )
+      .sort((a, b) => b.result.maxPriceAgeHours - a.result.maxPriceAgeHours);
+  }, [rows]);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
@@ -305,6 +343,17 @@ export default function ResultsTable({
         >
           Refresh Prices
         </button>
+        {staleItems.length > 0 && (
+          <span
+            title={staleItems
+              .map(({ recipe, result }) => `${recipe.name} — ${Math.round(result.maxPriceAgeHours)}h old`)
+              .join("\n")}
+            className="cursor-help rounded bg-red-900 px-2 py-1 text-xs font-semibold text-red-100"
+          >
+            ⟳ {staleItems.length} item{staleItems.length > 1 ? "s" : ""} need a refresh (&gt;
+            {STALE_PRICE_HOURS}h old)
+          </span>
+        )}
         {loading && <p className="text-sm text-navy-300">Loading prices…</p>}
       </div>
 
@@ -358,26 +407,27 @@ function ResultsSection({
   onToggleExpanded: (key: string) => void;
   onManualPriceChange: (uniqueName: string, value: number) => void;
 }) {
-  const headers: { key: SortKey | null; label: string; align: string }[] = [
-    { key: "name", label: "Item", align: "text-left" },
-    { key: "tier", label: "Tier", align: "text-center" },
-    { key: null, label: "Cost/Cycle", align: "text-right" },
-    { key: null, label: "Revenue/Cycle", align: "text-right" },
-    { key: "profitPerDay", label: "Profit/Day", align: "text-right" },
-    { key: "profitPerFocus", label: "Profit/Focus", align: "text-right" },
-    { key: "famePerDay", label: "Fame/Day", align: "text-right" },
+  const headers: { key: SortKey | null; label: string; align: string; width: string }[] = [
+    { key: "name", label: "Item", align: "text-left", width: "w-64" },
+    { key: "tier", label: "Tier", align: "text-center", width: "w-14" },
+    { key: null, label: "Cost/Cycle", align: "text-right", width: "w-24" },
+    { key: null, label: "Revenue/Cycle", align: "text-right", width: "w-28" },
+    { key: "profitPerDay", label: "Profit/Day", align: "text-right", width: "w-24" },
+    { key: "totalProfitPerDay", label: "Total Profit/Day", align: "text-right", width: "w-32" },
+    { key: "profitPerFocus", label: "Profit/Focus", align: "text-right", width: "w-24" },
+    { key: "famePerDay", label: "Fame/Day", align: "text-right", width: "w-20" },
   ];
 
   return (
     <div className="overflow-x-auto rounded-lg border border-navy-700">
-      <table className="w-full border-collapse">
+      <table className="w-full table-fixed border-collapse">
         <thead>
           <tr className="divide-x divide-navy-700 bg-navy-850 text-navy-300">
             {headers.map((h) => (
               <th
                 key={h.label}
                 onClick={h.key ? () => onToggleSort(h.key as SortKey) : undefined}
-                className={`px-2 py-2 text-xs font-medium uppercase tracking-wide ${h.align} ${
+                className={`${h.width} px-2 py-2 text-xs font-medium uppercase tracking-wide ${h.align} ${
                   h.key ? "cursor-pointer hover:text-navy-100" : ""
                 }`}
               >

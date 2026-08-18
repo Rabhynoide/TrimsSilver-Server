@@ -101,27 +101,30 @@ export function focusCost(baseFocusCost: number, specLevel: number): number {
   return Math.round(baseFocusCost - (baseFocusCost - FOCUS_COST_FLOOR) * t);
 }
 
-export function nurtureBonus(maxFocusBonus: number, specLevel: number): number {
-  return maxFocusBonus * (clampSpec(specLevel) / FOCUS_COST_SPEC_MAX);
+// Seed/offspring return fraction: the tier-based base chance, plus the
+// item's full watering bonus if watering happened this cycle (a flat amount,
+// NOT scaled by spec level — see farming-constants.ts). No location/city term
+// here: the Royal-city bonus applies to output amount, not return chance.
+// Values above 1 mean "guaranteed 1 plus a chance at a 2nd" — for
+// expected-value purposes that construction's expected value is simply the
+// fraction itself, so no branching is needed here.
+export function returnFraction(baseChance: number, maxFocusBonus: number, watered: boolean): number {
+  return baseChance + (watered ? maxFocusBonus : 0);
 }
 
-// Seed/offspring return fraction. Values above 1 mean "guaranteed 1 plus a
-// chance at a 2nd" — for expected-value purposes that construction's expected
-// value is simply the fraction itself, so no branching is needed here.
-export function returnFraction(
-  baseChance: number,
-  maxFocusBonus: number,
-  specLevel: number,
-  uniqueName: string,
-  location: FarmingLocation,
+// The Royal-city "Local" bonus (+10%) and Premium (+100%) both apply to the
+// harvested/produced output amount, stacking additively on the base amount
+// (confirmed live in-game — see farming-constants.ts).
+export function averageAmount(
+  min: number,
+  max: number,
+  premium: boolean,
+  locationBonus: boolean,
 ): number {
-  const bonus = hasLocationBonus(uniqueName, location) ? LOCATION_BONUS_FRACTION : 0;
-  return baseChance + nurtureBonus(maxFocusBonus, specLevel) + bonus;
-}
-
-export function averageAmount(min: number, max: number, premium: boolean): number {
   const avg = (min + max) / 2;
-  return premium ? avg * PREMIUM_YIELD_MULTIPLIER : avg;
+  const multiplier =
+    1 + (premium ? PREMIUM_YIELD_MULTIPLIER - 1 : 0) + (locationBonus ? LOCATION_BONUS_FRACTION : 0);
+  return avg * multiplier;
 }
 
 export function cyclesPerDay(growTimeSeconds: number, premium: boolean): number {
@@ -139,6 +142,15 @@ export function nutritionNeeded(food: FoodRequirement, cycleSeconds: number): nu
 }
 
 export type PriceLookup = (uniqueName: string) => number | null;
+
+// Hours since the price was last updated (null when the current price mode
+// has no meaningful single "age" — averages, manual entries, EMV).
+export type AgeLookup = (uniqueName: string) => number | null;
+
+function maxAge(...ages: (number | null)[]): number | null {
+  const known = ages.filter((a): a is number => a != null);
+  return known.length > 0 ? Math.max(...known) : null;
+}
 
 export type CheapestFood = { food: FoodItem; costPerNutrition: number };
 
@@ -170,6 +182,8 @@ export type EvalContext = {
   premium: boolean;
   sellPriceOf: PriceLookup;
   buyPriceOf: PriceLookup;
+  sellPriceAgeOf: AgeLookup;
+  buyPriceAgeOf: AgeLookup;
   foods: FoodItem[];
 };
 
@@ -199,6 +213,10 @@ export type EvalResult = {
   // sold, only replanted/rebred for the next cycle.
   inputReturnFraction: number | null;
   netInputUnitsConsumed: number | null;
+  // Oldest age (hours) among the market prices actually used for this row's
+  // cost/revenue, ignoring prices with no age concept (NPC, manual, EMV,
+  // averages). Null if no market-sourced price was used at all.
+  maxPriceAgeHours: number | null;
 };
 
 // Market price wins when available; otherwise fall back to the NPC merchant's
@@ -224,24 +242,25 @@ function evaluatePlant(recipe: PlantRecipe, ctx: EvalContext): EvalResult {
   const cropPrice = ctx.sellPriceOf(recipe.outputUniqueName);
   if (cropPrice == null) missingPrices.push(recipe.outputUniqueName);
 
-  const effectiveSpecLevel = ctx.useFocus ? ctx.specLevel : 0;
-  const fraction = returnFraction(
-    recipe.baseSeedReturnChance,
-    recipe.maxFocusBonus,
-    effectiveSpecLevel,
-    recipe.seedUniqueName,
-    ctx.location,
-  );
+  const fraction = returnFraction(recipe.baseSeedReturnChance, recipe.maxFocusBonus, ctx.useFocus);
   // Net seeds consumed per cycle = 1 planted - expected seeds returned.
   const netSeedsConsumed = Math.max(0, 1 - fraction);
 
-  const cropAmount = averageAmount(recipe.outputAmountMin, recipe.outputAmountMax, ctx.premium);
+  const locationBonus = hasLocationBonus(recipe.seedUniqueName, ctx.location);
+  const cropAmount = averageAmount(
+    recipe.outputAmountMin,
+    recipe.outputAmountMax,
+    ctx.premium,
+    locationBonus,
+  );
   let revenuePerCycle = cropPrice != null ? cropPrice * cropAmount : 0;
 
   for (const bonus of recipe.bonusLoot) {
     const bonusPrice = ctx.sellPriceOf(bonus.uniqueName);
     if (bonusPrice == null) continue;
-    const bonusAmount = averageAmount(bonus.amountMin, bonus.amountMax, ctx.premium);
+    // Bonus drops (e.g. Earthworm) aren't "the product" the Local city bonus
+    // names, so only Premium applies to their amount.
+    const bonusAmount = averageAmount(bonus.amountMin, bonus.amountMax, ctx.premium, false);
     revenuePerCycle += bonusPrice * bonus.chance * bonusAmount;
   }
 
@@ -249,6 +268,11 @@ function evaluatePlant(recipe: PlantRecipe, ctx: EvalContext): EvalResult {
   const cycles = cyclesPerDay(recipe.growTimeSeconds, ctx.premium);
   const focusPerCycle = ctx.useFocus ? focusCost(recipe.baseFocusCost, ctx.specLevel) : 0;
   const profitPerCycle = revenuePerCycle - costPerCycle;
+
+  const priceAge = maxAge(
+    inputPriceSource === "market" ? ctx.buyPriceAgeOf(recipe.seedUniqueName) : null,
+    ctx.sellPriceAgeOf(recipe.outputUniqueName),
+  );
 
   return {
     focusCostPerCycle: focusPerCycle,
@@ -264,6 +288,7 @@ function evaluatePlant(recipe: PlantRecipe, ctx: EvalContext): EvalResult {
     inputPrice: seedPrice,
     inputReturnFraction: fraction,
     netInputUnitsConsumed: netSeedsConsumed,
+    maxPriceAgeHours: priceAge,
   };
 }
 
@@ -279,14 +304,7 @@ function evaluateAnimal(recipe: AnimalRecipe, ctx: EvalContext): EvalResult {
   const grownPrice = ctx.sellPriceOf(recipe.grownUniqueName);
   if (grownPrice == null) missingPrices.push(recipe.grownUniqueName);
 
-  const effectiveSpecLevel = ctx.useFocus ? ctx.specLevel : 0;
-  const fraction = returnFraction(
-    recipe.baseOffspringChance,
-    recipe.maxFocusBonus,
-    effectiveSpecLevel,
-    recipe.babyUniqueName,
-    ctx.location,
-  );
+  const fraction = returnFraction(recipe.baseOffspringChance, recipe.maxFocusBonus, ctx.useFocus);
 
   let foodCostGrowth = 0;
   if (recipe.growthFood) {
@@ -311,6 +329,10 @@ function evaluateAnimal(recipe: AnimalRecipe, ctx: EvalContext): EvalResult {
   const growthProfitPerCycle = revenuePerGrowthCycle - costPerGrowthCycle;
 
   if (!recipe.product) {
+    const priceAge = maxAge(
+      inputPriceSource === "market" ? ctx.buyPriceAgeOf(recipe.babyUniqueName) : null,
+      ctx.sellPriceAgeOf(recipe.grownUniqueName),
+    );
     return {
       focusCostPerCycle: growthFocusPerCycle,
       cyclesPerDay: growthCycles,
@@ -325,6 +347,7 @@ function evaluateAnimal(recipe: AnimalRecipe, ctx: EvalContext): EvalResult {
       inputPrice: babyPrice,
       inputReturnFraction: fraction,
       netInputUnitsConsumed: netBabiesConsumed,
+      maxPriceAgeHours: priceAge,
     };
   }
 
@@ -345,7 +368,12 @@ function evaluateAnimal(recipe: AnimalRecipe, ctx: EvalContext): EvalResult {
     }
   }
 
-  const productAmount = averageAmount(product.outputAmountMin, product.outputAmountMax, ctx.premium);
+  const productAmount = averageAmount(
+    product.outputAmountMin,
+    product.outputAmountMax,
+    ctx.premium,
+    hasLocationBonus(recipe.babyUniqueName, ctx.location),
+  );
   const revenuePerCycle = productPrice != null ? productPrice * productAmount : 0;
   const cycles = 86400 / product.productionTimeSeconds;
   const profitPerCycle = revenuePerCycle - foodCostProduct;
@@ -367,6 +395,7 @@ function evaluateAnimal(recipe: AnimalRecipe, ctx: EvalContext): EvalResult {
     inputPrice: null,
     inputReturnFraction: null,
     netInputUnitsConsumed: null,
+    maxPriceAgeHours: ctx.sellPriceAgeOf(product.outputUniqueName),
   };
 }
 

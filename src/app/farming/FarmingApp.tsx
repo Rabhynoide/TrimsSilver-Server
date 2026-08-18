@@ -21,6 +21,13 @@ type Tab = "settings" | "results";
 
 type Catalog = { recipes: FarmingRecipe[]; foods: FoodItem[]; specs: FarmingSpecDef[] };
 
+function ageHours(dateStr: string): number | null {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime()) || date.getTime() === 0) return null;
+  const hours = (Date.now() - date.getTime()) / (1000 * 60 * 60);
+  return hours >= 0 ? hours : null;
+}
+
 function collectPricedItems(catalog: Catalog): string[] {
   const names = new Set<string>();
   for (const recipe of catalog.recipes) {
@@ -192,6 +199,32 @@ export default function FarmingApp({ isSignedIn }: { isSignedIn: boolean }) {
     };
   }, [config, prices, emv]);
 
+  // Hours since the price was last updated — only meaningful in "current"
+  // mode (a single live quote with its own timestamp); averages, manual
+  // entries and EMV have no equivalent single "age", so those return null and
+  // simply don't show a staleness badge.
+  const buyPriceAgeOf = useMemo(() => {
+    return (uniqueName: string): number | null => {
+      if (config.priceMode !== "current") return null;
+      const row = prices.find(
+        (p) => p.itemId === uniqueName && p.city === config.buyFrom && p.quality === 1,
+      );
+      if (!row || row.sellPriceMin <= 0) return null;
+      return ageHours(row.sellPriceMinDate);
+    };
+  }, [config.priceMode, config.buyFrom, prices]);
+
+  const sellPriceAgeOf = useMemo(() => {
+    return (uniqueName: string): number | null => {
+      if (config.priceMode !== "current") return null;
+      const row = prices.find(
+        (p) => p.itemId === uniqueName && p.city === config.sellTo && p.quality === 1,
+      );
+      if (!row || row.sellPriceMin <= 0) return null;
+      return ageHours(row.sellPriceMinDate);
+    };
+  }, [config.priceMode, config.sellTo, prices]);
+
   return (
     <main className="flex flex-1 flex-col gap-6 p-8 w-full">
       <h1 className="text-2xl font-semibold text-navy-100">Farming &amp; Breeding Calculator</h1>
@@ -242,6 +275,8 @@ export default function FarmingApp({ isSignedIn }: { isSignedIn: boolean }) {
           onChange={setConfig}
           buyPriceOf={buyPriceOf}
           sellPriceOf={sellPriceOf}
+          buyPriceAgeOf={buyPriceAgeOf}
+          sellPriceAgeOf={sellPriceAgeOf}
           foods={catalog?.foods ?? []}
           loading={pricesLoading}
           onRefresh={fetchPrices}

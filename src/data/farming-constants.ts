@@ -17,9 +17,14 @@ export const FARMING_LOCATIONS = [
 
 export type FarmingLocation = (typeof FARMING_LOCATIONS)[number];
 
-// +10% yield bonus per Royal city, keyed by the uniqueName "stem" token
-// (e.g. T1_FARM_CARROT_SEED contains "CARROT"). Brecilien uniquely bonuses
-// *all* crops (not herbs, not animals); Caerleon uniquely gets 3 herbs.
+// +10% bonus per Royal city, keyed by the uniqueName "stem" token (e.g.
+// T1_FARM_CARROT_SEED contains "CARROT"). Brecilien uniquely bonuses *all*
+// crops (not herbs, not animals); Caerleon uniquely gets 3 herbs.
+// Confirmed live in-game (user screenshot, Firetouched Mullein Seeds at
+// Thetford): this "Local" bonus applies to "Production de produits" — the
+// harvested output amount — NOT to seed/offspring return chance ("Production
+// de graines", which is exactly the tier base chance + the separate,
+// item-fixed watering bonus, no city term at all). See averageAmount().
 export const LOCATION_BONUS_STEMS: Record<FarmingLocation, string[]> = {
   Bridgewatch: ["BEAN", "CORN", "GOAT", "TEASEL"],
   Caerleon: ["COMFREY", "TEASEL", "MULLEIN"],
@@ -43,10 +48,14 @@ export const PREMIUM_FAME_MULTIPLIER = 2;
 export const PREMIUM_GROW_TIME_MULTIPLIER = 0.5;
 
 // Focus cost interpolates from the recipe's own baseFocusCost (spec 0) down to
-// this floor (spec 100); nurture yield bonus interpolates from 0 up to the
-// recipe's own maxFocusBonus over the same 0-100 range. The wiki only
-// documents the two endpoints, not the curve shape, so this is treated as
-// linear — a documented approximation, not a guess at raw values.
+// this floor (spec 100) — confirmed empirically against a user screenshot (a
+// ~91 spec character's watering cost matched this linear formula almost
+// exactly). The watering/nurture yield bonus itself is NOT spec-scaled: it's
+// a flat, item-fixed amount (the recipe's own maxFocusBonus) applied in full
+// whenever watering happens — also confirmed from the same screenshot, where
+// the displayed "Arrosage: +17.78%" matched the item's raw maxFocusBonus
+// exactly, not some fraction of it. Spec level only makes watering cheaper in
+// Focus, not more effective.
 export const FOCUS_COST_FLOOR = 125;
 export const FOCUS_COST_SPEC_MAX = 100;
 

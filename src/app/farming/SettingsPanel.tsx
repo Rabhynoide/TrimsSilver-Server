@@ -95,7 +95,8 @@ export default function SettingsPanel({
         {bonusedItems.length > 0 && (
           <div className="mt-3">
             <p className="mb-2 text-xs text-navy-400">
-              {config.location} local production bonus (+10% yield)
+              {config.location} local production bonus (+10% output amount — not seed/offspring
+              return chance)
             </p>
             <div className="flex flex-wrap gap-2">
               {bonusedItems.map((recipe) => (
@@ -112,7 +113,7 @@ export default function SettingsPanel({
                   <span className="text-xs text-navy-200">
                     {recipeDisplayName(recipe)} [{recipe.tier}.0]
                   </span>
-                  <span className="text-xs font-semibold text-gold-400">+10% yield</span>
+                  <span className="text-xs font-semibold text-gold-400">+10% output</span>
                 </div>
               ))}
             </div>
@@ -145,6 +146,20 @@ export default function SettingsPanel({
             Results use base tier yield only — no spec bonus, no Focus cost.
           </p>
         )}
+        <label className="mt-2 flex items-center gap-2 text-sm text-navy-300">
+          Production slots
+          <input
+            type="number"
+            min={0}
+            value={config.slots}
+            onChange={(e) => onChange((c) => ({ ...c, slots: parseInt(e.target.value, 10) || 0 }))}
+            className="w-20 rounded border border-navy-600 bg-navy-900 px-2 py-1 text-navy-100"
+          />
+        </label>
+        <p className="mt-1 text-xs text-navy-400">
+          1 field/pasture = 9 slots. Used only for the &quot;Total Profit/Day&quot; column in
+          Results — an estimate of real earnings if every slot ran that item.
+        </p>
         <p className="mt-2 text-xs text-navy-400">
           Sales tax {(salesTaxRateFor(config.premium) * 100).toFixed(2)}%
         </p>

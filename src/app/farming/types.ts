@@ -19,6 +19,11 @@ export type FarmingConfig = {
   // extra yield, at a Focus cost); when off, only the tier base yield and the
   // location bonus apply, at zero Focus cost.
   useFocus: boolean;
+  // Total production slots available (a Farm/Herb Garden/Pasture/Kennel plot
+  // holds 9 each) — used only to scale Profit/Day into a "Total Profit/Day"
+  // figure in Results, assuming every slot runs the same item. Doesn't affect
+  // the per-slot numbers at all.
+  slots: number;
   buyFrom: string;
   sellTo: string;
   priceMode: PriceMode;
@@ -34,6 +39,7 @@ export function defaultFarmingConfig(): FarmingConfig {
     location: "Lymhurst",
     premium: true,
     useFocus: true,
+    slots: 9,
     buyFrom: "Caerleon",
     sellTo: "Caerleon",
     priceMode: "current",
