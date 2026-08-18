@@ -12,6 +12,7 @@ Built feature by feature — no placeholder/empty pages, only what's actually wi
 - Bearer-token API auth for the desktop client: `/cli-auth` (browser hand-off, mints a token) and `/api/tokens` (manual minting), validated via `/api/me`
 - 7 private data ingest endpoints matching the client's uploads: market orders, player count, achievements, global multiplier, festivities, item estimated market values, private order shares
 - [`/market-prices`](https://trimssilver.trimards-island.org/market-prices): a live Albion Online price checker (current + averaged prices and per-cell price history charts, all from the public AODP API, nothing stored server-side) with a category/tier/enchantment item browser and saved favorites for signed-in users
+- [`/farming`](https://trimssilver.trimards-island.org/farming): a Farming & Breeding profitability calculator (crops, herbs, animal breeding and recurring animal products) with Royal-city location bonuses, Premium/tax/fee modeling, live AODP or personal-EMV pricing, and Destiny Board spec levels auto-filled from the desktop client's already-uploaded achievement data
 
 ## Local development
 
@@ -53,3 +54,13 @@ npm run catalog:build
 ```
 
 This pulls the latest data from [`ao-bin-dumps`](https://github.com/broderickhyman/ao-bin-dumps) and rewrites the file — review the diff and commit it like any other change.
+
+## Farming catalog
+
+`src/data/farming-catalog.json` (used by `/farming`) is the same kind of static snapshot, covering seeds/crops, baby/grown animals and their recurring products, food items, and the farming Destiny Board spec tree. Regenerate it with:
+
+```bash
+npm run farming-catalog:build
+```
+
+`src/data/farming-constants.ts` holds the small hand-maintained values that aren't in `ao-bin-dumps` (Royal-city location yield bonuses, premium modifiers, focus-cost floor) — sourced from wiki.albiononline.com/wiki/Farming and cross-checked against real in-game data; update it by hand if Sandbox/Cities ever rebalance farming.

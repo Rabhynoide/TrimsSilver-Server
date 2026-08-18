@@ -23,9 +23,20 @@ function MarketIcon() {
   );
 }
 
+function FarmingIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22v-9" />
+      <path d="M12 13c0-4-3-6-7-6 0 4 3 6 7 6z" />
+      <path d="M12 13c0-5 3-8 8-8 0 5-3 8-8 8z" />
+    </svg>
+  );
+}
+
 const NAV_ITEMS: { href: string; label: string; icon: ReactNode }[] = [
   { href: "/", label: "Home", icon: <HomeIcon /> },
   { href: "/market-prices", label: "Market Prices", icon: <MarketIcon /> },
+  { href: "/farming", label: "Farming & Breeding", icon: <FarmingIcon /> },
 ];
 
 export default function Sidebar() {

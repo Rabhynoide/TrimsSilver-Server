@@ -33,6 +33,7 @@ model User {
   privateOrderSharesResolvedFor PrivateOrderShare[]        @relation("PrivateOrderSharesResolved")
   apiTokens                     ApiToken[]
   marketPriceFavorites          MarketPriceFavorite[]
+  farmingCalculatorSettings     FarmingCalculatorSettings?
 }
 
 // Bearer token the desktop client sends on ingest requests, minted by a signed-in browser
@@ -271,4 +272,19 @@ model MarketPriceFavorite {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+// A saved Farming & Breeding Calculator profile (location, premium, tax/fee,
+// market locations, price mode, manual spec overrides). One row per user
+// (unlike MarketPriceFavorite, this is a single persisted profile, not a
+// named list — matches AFM's own single "Save Settings" control). Browser-only
+// feature, gated on the Auth.js session cookie.
+model FarmingCalculatorSettings {
+  id     String @id @default(cuid())
+  config Json
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  updatedAt DateTime @updatedAt
 }

@@ -10,7 +10,8 @@
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "catalog:build": "node scripts/build-item-catalog.mjs"
+    "catalog:build": "node scripts/build-item-catalog.mjs",
+    "farming-catalog:build": "node scripts/build-farming-catalog.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
