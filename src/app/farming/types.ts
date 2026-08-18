@@ -15,6 +15,10 @@ export type FarmingConfig = {
   region: AodpRegion;
   location: FarmingLocation;
   premium: boolean;
+  // Whether to spend Focus watering/nurturing (uses the Specs levels below for
+  // extra yield, at a Focus cost); when off, only the tier base yield and the
+  // location bonus apply, at zero Focus cost.
+  useFocus: boolean;
   buyFrom: string;
   sellTo: string;
   priceMode: PriceMode;
@@ -29,6 +33,7 @@ export function defaultFarmingConfig(): FarmingConfig {
     region: "Europe",
     location: "Lymhurst",
     premium: true,
+    useFocus: true,
     buyFrom: "Caerleon",
     sellTo: "Caerleon",
     priceMode: "current",

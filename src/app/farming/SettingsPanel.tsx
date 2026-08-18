@@ -132,6 +132,19 @@ export default function SettingsPanel({
           />
           Premium
         </label>
+        <label className="mt-2 flex items-center gap-2 text-sm text-navy-300">
+          <input
+            type="checkbox"
+            checked={config.useFocus}
+            onChange={(e) => onChange((c) => ({ ...c, useFocus: e.target.checked }))}
+          />
+          Use Focus (watering/nurturing)
+        </label>
+        {!config.useFocus && (
+          <p className="mt-1 text-xs text-navy-400">
+            Results use base tier yield only — no spec bonus, no Focus cost.
+          </p>
+        )}
         <p className="mt-2 text-xs text-navy-400">
           Sales tax {(salesTaxRateFor(config.premium) * 100).toFixed(2)}%
         </p>

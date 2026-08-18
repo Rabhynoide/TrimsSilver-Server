@@ -99,6 +99,14 @@ function RecipeRow({
               className="h-7 w-7"
             />
             <span className="text-sm text-navy-100">{recipe.name}</span>
+            {result.inputPriceSource === "npc" && (
+              <span
+                title="No market price for the seed/baby — using the fixed NPC farming-merchant price instead"
+                className="rounded bg-navy-600 px-1 text-[10px] text-navy-100"
+              >
+                NPC
+              </span>
+            )}
             {hasMissingPrices && (
               <span
                 title={`Missing price data: ${result.missingPrices.join(", ")}`}
@@ -131,6 +139,20 @@ function RecipeRow({
               <p className="text-xs text-navy-400">
                 Focus per cycle: {result.focusCostPerCycle} · Cycles/day: {result.cyclesPerDay.toFixed(2)}
               </p>
+              {result.inputPrice != null && (
+                <p className="text-xs text-navy-400">
+                  Input price: {money(result.inputPrice)} silver (
+                  {result.inputPriceSource === "npc" ? "NPC merchant" : "Market"})
+                </p>
+              )}
+              {result.inputReturnFraction != null && result.netInputUnitsConsumed != null && (
+                <p className="text-xs text-navy-400">
+                  {isPlantRecipe(recipe) ? "Seed" : "Baby"} return chance:{" "}
+                  {(result.inputReturnFraction * 100).toFixed(1)}% → buying{" "}
+                  {result.netInputUnitsConsumed.toFixed(2)} {isPlantRecipe(recipe) ? "seeds" : "babies"}/cycle
+                  on average (never counted as revenue — only discounts the cost above)
+                </p>
+              )}
               {isAnimalRecipe(recipe) && recipe.growthFood && (
                 <FoodBreakdown
                   food={recipe.growthFood}
@@ -208,6 +230,7 @@ export default function ResultsTable({
       const specLevel = specLevelForRecipe(recipe, config.specs, specs);
       const result = evaluateRecipe(recipe, {
         specLevel,
+        useFocus: config.useFocus,
         location: config.location,
         premium: config.premium,
         sellPriceOf,
@@ -216,7 +239,17 @@ export default function ResultsTable({
       });
       return { recipe, result };
     });
-  }, [recipes, specs, config.specs, config.location, config.premium, sellPriceOf, buyPriceOf, foods]);
+  }, [
+    recipes,
+    specs,
+    config.specs,
+    config.useFocus,
+    config.location,
+    config.premium,
+    sellPriceOf,
+    buyPriceOf,
+    foods,
+  ]);
 
   const sorted = useMemo(() => {
     const copy = [...rows];
@@ -255,18 +288,14 @@ export default function ResultsTable({
     onChange((c) => ({ ...c, manualPrices: { ...c.manualPrices, [uniqueName]: value } }));
   }
 
-  const headers: { key: SortKey | null; label: string; align: string }[] = [
-    { key: "name", label: "Item", align: "text-left" },
-    { key: "tier", label: "Tier", align: "text-center" },
-    { key: null, label: "Cost/Cycle", align: "text-right" },
-    { key: null, label: "Revenue/Cycle", align: "text-right" },
-    { key: "profitPerDay", label: "Profit/Day", align: "text-right" },
-    { key: "profitPerFocus", label: "Profit/Focus", align: "text-right" },
-    { key: "famePerDay", label: "Fame/Day", align: "text-right" },
+  const groups: { kind: FarmingRecipe["kind"]; label: string }[] = [
+    { kind: "crop", label: "Agriculture" },
+    { kind: "herb", label: "Plantes" },
+    { kind: "animal", label: "Élevage" },
   ];
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -279,41 +308,101 @@ export default function ResultsTable({
         {loading && <p className="text-sm text-navy-300">Loading prices…</p>}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-navy-700">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="divide-x divide-navy-700 bg-navy-850 text-navy-300">
-              {headers.map((h) => (
-                <th
-                  key={h.label}
-                  onClick={h.key ? () => toggleSort(h.key as SortKey) : undefined}
-                  className={`px-2 py-2 text-xs font-medium uppercase tracking-wide ${h.align} ${
-                    h.key ? "cursor-pointer hover:text-navy-100" : ""
-                  }`}
-                >
-                  {h.label}
-                  {h.key && sortKey === h.key ? (sortDesc ? " ▼" : " ▲") : ""}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map(({ recipe, result }) => (
-              <RecipeRow
-                key={recipeKey(recipe)}
-                recipe={recipe}
-                result={result}
-                config={config}
-                foods={foods}
-                buyPriceOf={buyPriceOf}
-                expanded={expanded.has(recipeKey(recipe))}
-                onToggle={() => toggleExpanded(recipeKey(recipe))}
-                onManualPriceChange={onManualPriceChange}
-              />
+      {groups.map((group) => {
+        const groupRows = sorted.filter(({ recipe }) => recipe.kind === group.kind);
+        if (groupRows.length === 0) return null;
+        return (
+          <section key={group.kind}>
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-navy-400">
+              {group.label} ({groupRows.length})
+            </h2>
+            <ResultsSection
+              rows={groupRows}
+              config={config}
+              foods={foods}
+              buyPriceOf={buyPriceOf}
+              sortKey={sortKey}
+              sortDesc={sortDesc}
+              onToggleSort={toggleSort}
+              expanded={expanded}
+              onToggleExpanded={toggleExpanded}
+              onManualPriceChange={onManualPriceChange}
+            />
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function ResultsSection({
+  rows,
+  config,
+  foods,
+  buyPriceOf,
+  sortKey,
+  sortDesc,
+  onToggleSort,
+  expanded,
+  onToggleExpanded,
+  onManualPriceChange,
+}: {
+  rows: { recipe: FarmingRecipe; result: EvalResult }[];
+  config: FarmingConfig;
+  foods: FoodItem[];
+  buyPriceOf: PriceLookup;
+  sortKey: SortKey;
+  sortDesc: boolean;
+  onToggleSort: (key: SortKey) => void;
+  expanded: Set<string>;
+  onToggleExpanded: (key: string) => void;
+  onManualPriceChange: (uniqueName: string, value: number) => void;
+}) {
+  const headers: { key: SortKey | null; label: string; align: string }[] = [
+    { key: "name", label: "Item", align: "text-left" },
+    { key: "tier", label: "Tier", align: "text-center" },
+    { key: null, label: "Cost/Cycle", align: "text-right" },
+    { key: null, label: "Revenue/Cycle", align: "text-right" },
+    { key: "profitPerDay", label: "Profit/Day", align: "text-right" },
+    { key: "profitPerFocus", label: "Profit/Focus", align: "text-right" },
+    { key: "famePerDay", label: "Fame/Day", align: "text-right" },
+  ];
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-navy-700">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="divide-x divide-navy-700 bg-navy-850 text-navy-300">
+            {headers.map((h) => (
+              <th
+                key={h.label}
+                onClick={h.key ? () => onToggleSort(h.key as SortKey) : undefined}
+                className={`px-2 py-2 text-xs font-medium uppercase tracking-wide ${h.align} ${
+                  h.key ? "cursor-pointer hover:text-navy-100" : ""
+                }`}
+              >
+                {h.label}
+                {h.key && sortKey === h.key ? (sortDesc ? " ▼" : " ▲") : ""}
+              </th>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ recipe, result }) => (
+            <RecipeRow
+              key={recipeKey(recipe)}
+              recipe={recipe}
+              result={result}
+              config={config}
+              foods={foods}
+              buyPriceOf={buyPriceOf}
+              expanded={expanded.has(recipeKey(recipe))}
+              onToggle={() => onToggleExpanded(recipeKey(recipe))}
+              onManualPriceChange={onManualPriceChange}
+            />
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

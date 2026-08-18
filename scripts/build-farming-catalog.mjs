@@ -119,6 +119,12 @@ function buildPlantRecipes(farmables, nameByUniqueName, lootByName) {
       // 0% for T1, rising with tier); nurturing (spec-driven, up to
       // maxFocusBonus) adds on top of this at full spec.
       baseSeedReturnChance: parseFloat(harvest.seed?.["@chance"] ?? "0"),
+      // Fixed price the in-game farming merchant NPC sells this seed for
+      // (craftingrequirements.@silver) — used as a fallback when no market
+      // price is available. Matches the wiki's "Price Per Seed" column.
+      npcPrice: entry.craftingrequirements?.["@silver"]
+        ? parseInt(entry.craftingrequirements["@silver"], 10)
+        : null,
       fame: parseInt(harvest["@fame"], 10),
       outputUniqueName: crop.uniqueName,
       outputName: nameByUniqueName.get(crop.uniqueName) ?? crop.uniqueName,
@@ -191,6 +197,12 @@ function buildAnimalRecipes(farmables, nameByUniqueName, lootByName) {
       maxFocusBonus: parseFloat(entry["@activefarmbonus"]),
       // Same shape as a plant's baseSeedReturnChance, but for offspring.
       baseOffspringChance: parseFloat(grown.offspring?.["@chance"] ?? "0"),
+      // Fixed price the farming merchant NPC sells this baby animal for —
+      // same fallback role as a plant's npcPrice. Grown animals have no NPC
+      // buy price (you can't buy a grown animal), only babies do.
+      npcPrice: entry.craftingrequirements?.["@silver"]
+        ? parseInt(entry.craftingrequirements["@silver"], 10)
+        : null,
       fame: parseInt(grown["@fame"], 10),
       grownUniqueName,
       grownName: nameByUniqueName.get(grownUniqueName) ?? grownUniqueName,

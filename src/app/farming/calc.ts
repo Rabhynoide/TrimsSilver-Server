@@ -26,6 +26,7 @@ export type PlantRecipe = {
   baseFocusCost: number;
   maxFocusBonus: number;
   baseSeedReturnChance: number;
+  npcPrice: number | null;
   fame: number;
   outputUniqueName: string;
   outputName: string;
@@ -54,6 +55,7 @@ export type AnimalRecipe = {
   baseFocusCost: number;
   maxFocusBonus: number;
   baseOffspringChance: number;
+  npcPrice: number | null;
   fame: number;
   grownUniqueName: string;
   grownName: string;
@@ -159,12 +161,19 @@ export function cheapestFood(
 
 export type EvalContext = {
   specLevel: number;
+  // Whether to spend Focus watering/nurturing each cycle. When false, the
+  // spec-driven nurture bonus and its Focus cost are both zeroed out — only
+  // the tier-based base yield and the (Focus-independent) location bonus
+  // still apply.
+  useFocus: boolean;
   location: FarmingLocation;
   premium: boolean;
   sellPriceOf: PriceLookup;
   buyPriceOf: PriceLookup;
   foods: FoodItem[];
 };
+
+export type InputPriceSource = "market" | "npc" | null;
 
 export type EvalResult = {
   focusCostPerCycle: number;
@@ -176,21 +185,50 @@ export type EvalResult = {
   profitPerFocus: number | null;
   famePerDay: number;
   missingPrices: string[];
+  // Where the seed/baby input price came from — the live market (via
+  // buyPriceOf) if available, otherwise the fixed NPC farming-merchant price
+  // baked into the game data (see npcPrice on the recipe). Null only if
+  // neither is available.
+  inputPriceSource: InputPriceSource;
+  // The raw per-unit seed/baby price actually used (before multiplying by net
+  // units consumed) — kept separate from costPerCycle so the UI can show it.
+  inputPrice: number | null;
+  // Chance of getting the planted seed/bred baby back "for free" (tier base +
+  // nurture bonus + location bonus). This only ever discounts the input cost
+  // — it's never added to revenue, since the returned seed/baby isn't itself
+  // sold, only replanted/rebred for the next cycle.
+  inputReturnFraction: number | null;
+  netInputUnitsConsumed: number | null;
 };
+
+// Market price wins when available; otherwise fall back to the NPC merchant's
+// fixed price so a cost estimate always exists when a real one can be had.
+function resolveInputPrice(
+  marketPrice: number | null,
+  npcPrice: number | null,
+): { price: number | null; source: InputPriceSource } {
+  if (marketPrice != null) return { price: marketPrice, source: "market" };
+  if (npcPrice != null) return { price: npcPrice, source: "npc" };
+  return { price: null, source: null };
+}
 
 function evaluatePlant(recipe: PlantRecipe, ctx: EvalContext): EvalResult {
   const missingPrices: string[] = [];
 
-  const seedPrice = ctx.buyPriceOf(recipe.seedUniqueName);
+  const { price: seedPrice, source: inputPriceSource } = resolveInputPrice(
+    ctx.buyPriceOf(recipe.seedUniqueName),
+    recipe.npcPrice,
+  );
   if (seedPrice == null) missingPrices.push(recipe.seedUniqueName);
 
   const cropPrice = ctx.sellPriceOf(recipe.outputUniqueName);
   if (cropPrice == null) missingPrices.push(recipe.outputUniqueName);
 
+  const effectiveSpecLevel = ctx.useFocus ? ctx.specLevel : 0;
   const fraction = returnFraction(
     recipe.baseSeedReturnChance,
     recipe.maxFocusBonus,
-    ctx.specLevel,
+    effectiveSpecLevel,
     recipe.seedUniqueName,
     ctx.location,
   );
@@ -209,7 +247,7 @@ function evaluatePlant(recipe: PlantRecipe, ctx: EvalContext): EvalResult {
 
   const costPerCycle = seedPrice != null ? seedPrice * netSeedsConsumed : 0;
   const cycles = cyclesPerDay(recipe.growTimeSeconds, ctx.premium);
-  const focusPerCycle = focusCost(recipe.baseFocusCost, ctx.specLevel);
+  const focusPerCycle = ctx.useFocus ? focusCost(recipe.baseFocusCost, ctx.specLevel) : 0;
   const profitPerCycle = revenuePerCycle - costPerCycle;
 
   return {
@@ -222,22 +260,30 @@ function evaluatePlant(recipe: PlantRecipe, ctx: EvalContext): EvalResult {
     profitPerFocus: focusPerCycle > 0 ? profitPerCycle / focusPerCycle : null,
     famePerDay: fameAmount(recipe.fame, ctx.premium) * cycles,
     missingPrices,
+    inputPriceSource,
+    inputPrice: seedPrice,
+    inputReturnFraction: fraction,
+    netInputUnitsConsumed: netSeedsConsumed,
   };
 }
 
 function evaluateAnimal(recipe: AnimalRecipe, ctx: EvalContext): EvalResult {
   const missingPrices: string[] = [];
 
-  const babyPrice = ctx.buyPriceOf(recipe.babyUniqueName);
+  const { price: babyPrice, source: inputPriceSource } = resolveInputPrice(
+    ctx.buyPriceOf(recipe.babyUniqueName),
+    recipe.npcPrice,
+  );
   if (babyPrice == null) missingPrices.push(recipe.babyUniqueName);
 
   const grownPrice = ctx.sellPriceOf(recipe.grownUniqueName);
   if (grownPrice == null) missingPrices.push(recipe.grownUniqueName);
 
+  const effectiveSpecLevel = ctx.useFocus ? ctx.specLevel : 0;
   const fraction = returnFraction(
     recipe.baseOffspringChance,
     recipe.maxFocusBonus,
-    ctx.specLevel,
+    effectiveSpecLevel,
     recipe.babyUniqueName,
     ctx.location,
   );
@@ -253,12 +299,15 @@ function evaluateAnimal(recipe: AnimalRecipe, ctx: EvalContext): EvalResult {
     }
   }
 
-  // Raising a baby to adulthood yields exactly 1 grown animal (guaranteed) plus
-  // an expected `fraction` extra offspring (new babies) for the next cycle.
-  const revenuePerGrowthCycle = (grownPrice ?? 0) + (babyPrice ?? 0) * fraction;
-  const costPerGrowthCycle = (babyPrice ?? 0) + foodCostGrowth;
+  // Raising a baby to adulthood yields exactly 1 grown animal (guaranteed),
+  // which is the only thing sold — an expected `fraction` of the next cycle's
+  // baby is bred back "for free" instead, so (like a plant's seed return)
+  // that only discounts the input cost, never adds to revenue.
+  const netBabiesConsumed = Math.max(0, 1 - fraction);
+  const revenuePerGrowthCycle = grownPrice ?? 0;
+  const costPerGrowthCycle = (babyPrice ?? 0) * netBabiesConsumed + foodCostGrowth;
   const growthCycles = cyclesPerDay(recipe.growTimeSeconds, ctx.premium);
-  const growthFocusPerCycle = focusCost(recipe.baseFocusCost, ctx.specLevel);
+  const growthFocusPerCycle = ctx.useFocus ? focusCost(recipe.baseFocusCost, ctx.specLevel) : 0;
   const growthProfitPerCycle = revenuePerGrowthCycle - costPerGrowthCycle;
 
   if (!recipe.product) {
@@ -272,6 +321,10 @@ function evaluateAnimal(recipe: AnimalRecipe, ctx: EvalContext): EvalResult {
       profitPerFocus: growthFocusPerCycle > 0 ? growthProfitPerCycle / growthFocusPerCycle : null,
       famePerDay: fameAmount(recipe.fame, ctx.premium) * growthCycles,
       missingPrices,
+      inputPriceSource,
+      inputPrice: babyPrice,
+      inputReturnFraction: fraction,
+      netInputUnitsConsumed: netBabiesConsumed,
     };
   }
 
@@ -307,6 +360,13 @@ function evaluateAnimal(recipe: AnimalRecipe, ctx: EvalContext): EvalResult {
     profitPerFocus: null,
     famePerDay: fameAmount(product.fame, ctx.premium) * cycles,
     missingPrices,
+    // No seed/baby purchase happens in the recurring product cycle itself
+    // (it assumes an already-grown animal), so there's no input price to
+    // attribute here.
+    inputPriceSource: null,
+    inputPrice: null,
+    inputReturnFraction: null,
+    netInputUnitsConsumed: null,
   };
 }
 
