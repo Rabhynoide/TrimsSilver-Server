@@ -205,7 +205,7 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8 max-w-6xl mx-auto w-full">
+    <main className="flex flex-1 flex-col gap-6 p-8 w-full">
       <h1 className="text-2xl font-semibold text-navy-100">Market Prices</h1>
 
       <div className="flex gap-4 border-b border-navy-700">

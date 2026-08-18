@@ -30,7 +30,7 @@ function Cell({
 }) {
   if (!row) {
     return (
-      <td className="min-w-[52px] px-1 py-0.5 text-center text-[11px]" style={{ color: `${textColor}80` }}>
+      <td className="min-w-[58px] px-1 py-0.5 text-center text-[11px]" style={{ color: `${textColor}80` }}>
         -
       </td>
     );
@@ -41,17 +41,19 @@ function Cell({
   const badge = headline > 0 ? ageBadge(headlineDate) : null;
 
   return (
-    <td className="relative min-w-[52px] px-1 py-0.5">
-      {badge && (
-        <span
-          title={badge.title}
-          className={`absolute top-0 right-0 rounded-bl px-0.5 text-[8px] leading-tight text-white ${badge.className}`}
-        >
-          {badge.label}
+    <td className="min-w-[58px] px-1 py-0.5">
+      <div className="flex items-center justify-center gap-1">
+        <span className="text-[11px] font-semibold" style={{ color: textColor }}>
+          {headline > 0 ? headline.toLocaleString() : "-"}
         </span>
-      )}
-      <div className="text-center text-[11px] font-semibold" style={{ color: textColor }}>
-        {headline > 0 ? headline.toLocaleString() : "-"}
+        {badge && (
+          <span
+            title={badge.title}
+            className={`shrink-0 rounded px-0.5 text-[8px] leading-tight text-white ${badge.className}`}
+          >
+            {badge.label}
+          </span>
+        )}
       </div>
       {config.showAverages && (
         <div className="flex justify-between text-[9px]" style={{ color: `${textColor}c0` }}>
@@ -99,9 +101,9 @@ function ItemCard({
 
       <table className="border-separate border-spacing-y-0.5">
         <thead>
-          <tr className="text-navy-300">
+          <tr className="divide-x divide-navy-700 text-navy-300">
             {qualityLevels.map((quality) => (
-              <th key={quality} className="min-w-[52px] px-1 text-center text-[9px] font-medium">
+              <th key={quality} className="min-w-[58px] px-1 text-center text-[9px] font-medium">
                 {item.hasQuality ? QUALITY_LABELS[quality] : "Price"}
               </th>
             ))}
@@ -111,7 +113,12 @@ function ItemCard({
           {config.cities.map((city) => {
             const style = CITY_ROW_STYLE[city] ?? { bg: "#232e4a", text: "#dde3f2" };
             return (
-              <tr key={city} title={city} style={{ backgroundColor: style.bg }}>
+              <tr
+                key={city}
+                title={city}
+                className="divide-x divide-black/25"
+                style={{ backgroundColor: style.bg }}
+              >
                 {qualityLevels.map((quality) => {
                   const row = rowsForItem.find((p) => p.city === city && p.quality === quality);
                   return <Cell key={quality} row={row} config={config} textColor={style.text} />;

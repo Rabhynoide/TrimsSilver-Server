@@ -6,7 +6,7 @@ export default async function Header() {
 
   return (
     <header className="border-b border-navy-700 bg-navy-850">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-8 py-3">
+      <div className="flex items-center justify-between gap-4 px-8 py-3">
         <div className="flex items-center gap-6">
           <Link href="/" className="text-lg font-semibold tracking-wide text-gold-400">
             TrimsSilver
