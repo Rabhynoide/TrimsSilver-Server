@@ -232,6 +232,15 @@ A second round, driven by the user actually using the tool and — critically �
 - **Price staleness indicator**: prices ≥12h old (current-mode only — averages/manual/EMV have no single "age") get a red "⟳ Xh" badge on the row, plus a compact "⟳ N items need a refresh" badge next to the Refresh Prices button whose hover tooltip lists every stale item and its age (iterated from an initial always-visible banner, which the user found too space-hungry — a hover summary was the better fit).
 - **Deliberately deferred (noted by the user, not filed as a blocker)**: some animals can be raised for more than one purpose in-game — e.g. Geese for meat (sell the grown animal) vs. for eggs (keep feeding for the recurring product) — and the calculator currently only ever shows one row per animal (the product cycle when one exists, otherwise the growth cycle), picking a side rather than showing both as separate comparable rows. Tracked as server issue #9.
 
+## Price refresh "Unexpected token '<'" bug fix (2026-08-18)
+
+User-reported live: refreshing prices on Market Prices and/or Farming occasionally failed with `Failed to load prices: Unexpected token '<', "<!doctype "... is not valid JSON`. Two combined issues, both in code that predates this session:
+
+- `src/lib/aodp.ts`'s three AODP `fetch` calls (current prices, averages/history, single-item history) had no timeout. A slow/hanging upstream request could run until the *hosting platform's own* gateway/function timeout killed it and returned an HTML error page — bypassing this file's own `try/catch`, which only ever returns clean JSON for errors it can see. Fixed with a 15s `AbortSignal.timeout(15_000)` on all three, so we fail fast with our own JSON error before any platform-level timeout can intervene.
+- `FarmingApp.tsx`, `MarketPricesApp.tsx`, and `PriceHistoryChart.tsx` all called `res.json()` unconditionally on the fetch response, so any non-JSON body (that HTML error page, or anything else) threw a raw `SyntaxError` that got displayed to the user verbatim instead of a readable message. Fixed with a shared `readJsonResponse()` helper (`src/lib/http.ts`) that checks `content-type` before parsing and throws a clear "try again in a moment" message otherwise.
+
+Live-reproduced only the fast-path (confirmed `/api/market/prices` returns clean JSON for both a single item and the full ~78-item Farming catalog against the live deployment) — the HTML-response path itself is a timing-dependent platform behavior, not something reliably reproducible on demand, so the fix targets the two structural gaps that could produce it rather than a specific reproduction. Commit `5ddd874`, pushed to `main`.
+
 ## Next steps, in the order they were being tackled
 
 1. **Decide the fate of Portfolio / Legendary marketplace / AFM EMV lookups** — client issue #5, currently disabled via `FeatureFlags.AfmIntegrationEnabled = false`. This is a product decision (retire vs. reintroduce a second Google/Firebase auth flow vs. something else), not something to solve with more code without direction.
