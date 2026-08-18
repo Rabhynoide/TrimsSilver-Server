@@ -88,6 +88,20 @@ export const CITY_COLORS: Record<string, string> = {
   Thetford: "#8b5fd1",
 };
 
+// Full-strength versions of the same city colors, used as solid price-grid row
+// bands (AFM-style — the row's color is what identifies the city, no repeated
+// text label per row) plus the readable text color for each.
+export const CITY_ROW_STYLE: Record<string, { bg: string; text: string }> = {
+  "Black Market": { bg: "#2c3543", text: "#e7ecf5" },
+  Brecilien: { bg: "#8a3ea0", text: "#ffffff" },
+  Bridgewatch: { bg: "#9c7527", text: "#ffffff" },
+  Caerleon: { bg: "#a83232", text: "#ffffff" },
+  "Fort Sterling": { bg: "#aab5c9", text: "#12172a" },
+  Lymhurst: { bg: "#357a4c", text: "#ffffff" },
+  Martlock: { bg: "#2f689e", text: "#ffffff" },
+  Thetford: { bg: "#6b46a8", text: "#ffffff" },
+};
+
 export const QUALITY_LEVELS = [1, 2, 3, 4, 5] as const;
 
 export const QUALITY_LABELS: Record<number, string> = {

@@ -1,6 +1,6 @@
 "use client";
 
-import { itemId, CITY_COLORS, QUALITY_LABELS, QUALITY_LEVELS } from "./types";
+import { itemId, CITY_ROW_STYLE, QUALITY_LABELS, QUALITY_LEVELS } from "./types";
 import type { PriceCheckerConfig, PriceRow, SelectedItem } from "./types";
 
 function ageBadge(dateStr: string): { label: string; title: string; className: string } | null {
@@ -18,9 +18,21 @@ function ageBadge(dateStr: string): { label: string; title: string; className: s
   return { label, title, className: "bg-red-800" };
 }
 
-function Cell({ row, config }: { row: PriceRow | undefined; config: PriceCheckerConfig }) {
+function Cell({
+  row,
+  config,
+  textColor,
+}: {
+  row: PriceRow | undefined;
+  config: PriceCheckerConfig;
+  textColor: string;
+}) {
   if (!row) {
-    return <td className="border border-navy-700 px-2 py-1 text-center text-navy-500">-</td>;
+    return (
+      <td className="px-2 py-1.5 text-center" style={{ color: `${textColor}80` }}>
+        -
+      </td>
+    );
   }
 
   const headline = config.priceType === "sell" ? row.sellPriceMin : row.buyPriceMax;
@@ -28,7 +40,7 @@ function Cell({ row, config }: { row: PriceRow | undefined; config: PriceChecker
   const badge = headline > 0 ? ageBadge(headlineDate) : null;
 
   return (
-    <td className="relative border border-navy-700 px-2 py-1">
+    <td className="relative px-2 py-1.5">
       {badge && (
         <span
           title={badge.title}
@@ -37,11 +49,11 @@ function Cell({ row, config }: { row: PriceRow | undefined; config: PriceChecker
           {badge.label}
         </span>
       )}
-      <div className="text-center font-semibold text-navy-100">
+      <div className="text-center font-semibold" style={{ color: textColor }}>
         {headline > 0 ? headline.toLocaleString() : "-"}
       </div>
       {config.showAverages && (
-        <div className="flex justify-between px-1 text-xs text-navy-400">
+        <div className="flex justify-between px-1 text-xs" style={{ color: `${textColor}c0` }}>
           <span title="Average price">
             {row.avgPrice != null ? row.avgPrice.toLocaleString() : "-"}
           </span>
@@ -80,7 +92,10 @@ export default function PriceGrid({
         const qualityLevels = item.hasQuality ? QUALITY_LEVELS : [1];
 
         return (
-          <div key={id} className="rounded-lg border border-navy-700 bg-navy-850 p-3">
+          <div
+            key={id}
+            className="overflow-hidden rounded-lg border border-navy-700 bg-navy-850 p-3"
+          >
             <div className="mb-2 flex items-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -97,34 +112,32 @@ export default function PriceGrid({
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
+              <table className="w-full border-separate border-spacing-y-1 text-sm">
                 <thead>
-                  <tr className="bg-navy-700 text-navy-100">
-                    <th className="border border-navy-700 px-2 py-1 text-left">City</th>
+                  <tr className="text-navy-300">
                     {qualityLevels.map((quality) => (
-                      <th key={quality} className="border border-navy-700 px-2 py-1">
+                      <th key={quality} className="px-2 py-1 text-center font-medium">
                         {item.hasQuality ? QUALITY_LABELS[quality] : "Price"}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {config.cities.map((city) => (
-                    <tr key={city}>
-                      <td
-                        className="border border-navy-700 py-1 pl-3 pr-2 whitespace-nowrap text-navy-100"
-                        style={{ borderLeft: `3px solid ${CITY_COLORS[city]}` }}
-                      >
-                        {city}
-                      </td>
-                      {qualityLevels.map((quality) => {
-                        const row = rowsForItem.find(
-                          (p) => p.city === city && p.quality === quality,
-                        );
-                        return <Cell key={quality} row={row} config={config} />;
-                      })}
-                    </tr>
-                  ))}
+                  {config.cities.map((city) => {
+                    const style = CITY_ROW_STYLE[city] ?? { bg: "#232e4a", text: "#dde3f2" };
+                    return (
+                      <tr key={city} title={city} style={{ backgroundColor: style.bg }}>
+                        {qualityLevels.map((quality) => {
+                          const row = rowsForItem.find(
+                            (p) => p.city === city && p.quality === quality,
+                          );
+                          return (
+                            <Cell key={quality} row={row} config={config} textColor={style.text} />
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
