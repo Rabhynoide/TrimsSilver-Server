@@ -30,7 +30,7 @@ function Cell({
 }) {
   if (!row) {
     return (
-      <td className="min-w-[58px] px-1 py-0.5 text-center text-[11px]" style={{ color: `${textColor}80` }}>
+      <td className="min-w-[68px] px-1.5 py-1 text-center text-sm" style={{ color: `${textColor}80` }}>
         -
       </td>
     );
@@ -41,22 +41,22 @@ function Cell({
   const badge = headline > 0 ? ageBadge(headlineDate) : null;
 
   return (
-    <td className="min-w-[58px] px-1 py-0.5">
+    <td className="min-w-[68px] px-1.5 py-1">
       <div className="flex items-center justify-center gap-1">
-        <span className="text-[11px] font-semibold" style={{ color: textColor }}>
+        <span className="text-sm font-semibold" style={{ color: textColor }}>
           {headline > 0 ? headline.toLocaleString() : "-"}
         </span>
         {badge && (
           <span
             title={badge.title}
-            className={`shrink-0 rounded px-0.5 text-[8px] leading-tight text-white ${badge.className}`}
+            className={`shrink-0 rounded px-0.5 text-[10px] leading-tight text-white ${badge.className}`}
           >
             {badge.label}
           </span>
         )}
       </div>
       {config.showAverages && (
-        <div className="flex justify-between text-[9px]" style={{ color: `${textColor}c0` }}>
+        <div className="flex justify-between text-[11px]" style={{ color: `${textColor}c0` }}>
           <span title="Average price">
             {row.avgPrice != null ? row.avgPrice.toLocaleString() : "-"}
           </span>
@@ -90,10 +90,10 @@ function ItemCard({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`https://render.albiononline.com/v1/item/${id}.png`} alt="" className="h-8 w-8" />
         <div>
-          <p className="text-xs font-semibold text-navy-100">
+          <p className="text-sm font-semibold text-navy-100">
             {item.name} [{item.tier}.{item.enchant}]
           </p>
-          <p className="text-[10px] text-navy-400">
+          <p className="text-xs text-navy-400">
             Tier {item.tier} Enchantment {item.enchant}
           </p>
         </div>
@@ -103,7 +103,7 @@ function ItemCard({
         <thead>
           <tr className="divide-x divide-navy-700 text-navy-300">
             {qualityLevels.map((quality) => (
-              <th key={quality} className="min-w-[58px] px-1 text-center text-[9px] font-medium">
+              <th key={quality} className="min-w-[68px] px-1.5 text-center text-xs font-medium">
                 {item.hasQuality ? QUALITY_LABELS[quality] : "Price"}
               </th>
             ))}
