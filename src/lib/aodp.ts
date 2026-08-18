@@ -110,3 +110,38 @@ export async function fetchAveragePrices(
 export function priceKey(itemId: string, city: string, quality: number): string {
   return `${itemId}|${city}|${quality}`;
 }
+
+export type HistoryPoint = { timestamp: string; avgPrice: number; itemCount: number };
+
+// Raw time series (not averaged down to one number) for a single item/city/
+// quality, for the price history chart.
+export async function fetchPriceHistorySeries(
+  region: AodpRegion,
+  itemId: string,
+  city: string,
+  quality: number,
+  days: number,
+): Promise<HistoryPoint[]> {
+  const url = new URL(`${baseUrl(region)}/history/${encodeURIComponent(itemId)}`);
+  url.searchParams.set("locations", city);
+  url.searchParams.set("qualities", String(quality));
+  url.searchParams.set("time-scale", "24");
+
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`AODP history request failed: ${res.status} ${res.statusText}`);
+  }
+  const rows: AodpHistoryRow[] = await res.json();
+  const row = rows.find((r) => r.location === city && r.quality === quality);
+  if (!row) return [];
+
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return row.data
+    .filter((bucket) => bucket.item_count > 0 && new Date(bucket.timestamp).getTime() >= cutoff)
+    .map((bucket) => ({
+      timestamp: bucket.timestamp,
+      avgPrice: bucket.avg_price,
+      itemCount: bucket.item_count,
+    }))
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+}

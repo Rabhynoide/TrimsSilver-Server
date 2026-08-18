@@ -112,6 +112,8 @@ export const QUALITY_LABELS: Record<number, string> = {
   5: "Masterpiece",
 };
 
+export type HistoryPoint = { timestamp: string; avgPrice: number; itemCount: number };
+
 export function itemId(item: SelectedItem): string {
   if (item.enchant === 0) return item.uniqueName;
   // Equipment: enchant N of the same base item -> "UNIQUENAME@N".

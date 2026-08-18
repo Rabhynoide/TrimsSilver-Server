@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { itemId, CITY_ROW_STYLE, QUALITY_LABELS, QUALITY_LEVELS } from "./types";
 import type { PriceCheckerConfig, PriceRow, SelectedItem } from "./types";
+import PriceHistoryChart from "./PriceHistoryChart";
+
+const CHART_DAYS = 30;
 
 function ageBadge(dateStr: string): { label: string; title: string; className: string } | null {
   const date = new Date(dateStr);
@@ -23,14 +26,23 @@ function Cell({
   row,
   config,
   textColor,
+  active,
+  onSelect,
 }: {
   row: PriceRow | undefined;
   config: PriceCheckerConfig;
   textColor: string;
+  active: boolean;
+  onSelect: () => void;
 }) {
   if (!row) {
     return (
-      <td className="min-w-[68px] px-1.5 py-1 text-center text-sm" style={{ color: `${textColor}80` }}>
+      <td
+        onClick={onSelect}
+        title="Click to view price history"
+        className={`min-w-[68px] cursor-pointer px-1.5 py-1 text-center text-sm hover:brightness-110 ${active ? "ring-1 ring-inset ring-white/60" : ""}`}
+        style={{ color: `${textColor}80` }}
+      >
         -
       </td>
     );
@@ -41,7 +53,11 @@ function Cell({
   const badge = headline > 0 ? ageBadge(headlineDate) : null;
 
   return (
-    <td className="min-w-[68px] px-1.5 py-1">
+    <td
+      onClick={onSelect}
+      title="Click to view price history"
+      className={`min-w-[68px] cursor-pointer px-1.5 py-1 hover:brightness-110 ${active ? "ring-1 ring-inset ring-white/60" : ""}`}
+    >
       <div className="flex items-center justify-center gap-1">
         <span className="text-sm font-semibold" style={{ color: textColor }}>
           {headline > 0 ? headline.toLocaleString() : "-"}
@@ -84,8 +100,12 @@ function ItemCard({
   // equipment/mounts do (see build-item-catalog.mjs's hasQuality flag).
   const qualityLevels = item.hasQuality ? QUALITY_LEVELS : [1];
 
+  const [activeChart, setActiveChart] = useState<{ city: string; quality: number } | null>(null);
+
   return (
-    <div className="flex-shrink-0 overflow-hidden rounded-lg border border-navy-700 bg-navy-850 p-2">
+    <div
+      className={`flex-shrink-0 rounded-lg border border-navy-700 bg-navy-850 p-2 ${activeChart ? "min-w-[420px]" : ""}`}
+    >
       <div className="mb-1.5 flex items-center gap-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`https://render.albiononline.com/v1/item/${id}.png`} alt="" className="h-8 w-8" />
@@ -121,13 +141,38 @@ function ItemCard({
               >
                 {qualityLevels.map((quality) => {
                   const row = rowsForItem.find((p) => p.city === city && p.quality === quality);
-                  return <Cell key={quality} row={row} config={config} textColor={style.text} />;
+                  const isActive = activeChart?.city === city && activeChart?.quality === quality;
+                  return (
+                    <Cell
+                      key={quality}
+                      row={row}
+                      config={config}
+                      textColor={style.text}
+                      active={isActive}
+                      onSelect={() =>
+                        setActiveChart(isActive ? null : { city, quality })
+                      }
+                    />
+                  );
                 })}
               </tr>
             );
           })}
         </tbody>
       </table>
+
+      {activeChart && (
+        <PriceHistoryChart
+          key={`${activeChart.city}|${activeChart.quality}`}
+          item={item}
+          city={activeChart.city}
+          quality={activeChart.quality}
+          hasQuality={item.hasQuality}
+          region={config.region}
+          days={CHART_DAYS}
+          onClose={() => setActiveChart(null)}
+        />
+      )}
     </div>
   );
 }
