@@ -11,7 +11,7 @@ Built feature by feature — no placeholder/empty pages, only what's actually wi
 - Discord sign-in (Auth.js, database-backed sessions via Prisma/Postgres)
 - Bearer-token API auth for the desktop client: `/cli-auth` (browser hand-off, mints a token) and `/api/tokens` (manual minting), validated via `/api/me`
 - 7 private data ingest endpoints matching the client's uploads: market orders, player count, achievements, global multiplier, festivities, item estimated market values, private order shares
-- [`/market-prices`](https://trimssilver.trimards-island.org/market-prices): a live Albion Online price checker (current + averaged prices from the public AODP API, no data stored server-side) with a category/tier/enchantment item browser and saved favorites for signed-in users
+- [`/market-prices`](https://trimssilver.trimards-island.org/market-prices): a live Albion Online price checker (current + averaged prices and per-cell price history charts, all from the public AODP API, nothing stored server-side) with a category/tier/enchantment item browser and saved favorites for signed-in users
 
 ## Local development
 
