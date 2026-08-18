@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { itemId, CITY_ROW_STYLE, QUALITY_LABELS, QUALITY_LEVELS } from "./types";
 import type { PriceCheckerConfig, PriceRow, SelectedItem } from "./types";
 
@@ -29,7 +30,7 @@ function Cell({
 }) {
   if (!row) {
     return (
-      <td className="px-2 py-1.5 text-center" style={{ color: `${textColor}80` }}>
+      <td className="min-w-[52px] px-1 py-0.5 text-center text-[11px]" style={{ color: `${textColor}80` }}>
         -
       </td>
     );
@@ -40,20 +41,20 @@ function Cell({
   const badge = headline > 0 ? ageBadge(headlineDate) : null;
 
   return (
-    <td className="relative px-2 py-1.5">
+    <td className="relative min-w-[52px] px-1 py-0.5">
       {badge && (
         <span
           title={badge.title}
-          className={`absolute top-0 right-0 rounded-bl px-1 text-[10px] text-white ${badge.className}`}
+          className={`absolute top-0 right-0 rounded-bl px-0.5 text-[8px] leading-tight text-white ${badge.className}`}
         >
           {badge.label}
         </span>
       )}
-      <div className="text-center font-semibold" style={{ color: textColor }}>
+      <div className="text-center text-[11px] font-semibold" style={{ color: textColor }}>
         {headline > 0 ? headline.toLocaleString() : "-"}
       </div>
       {config.showAverages && (
-        <div className="flex justify-between px-1 text-xs" style={{ color: `${textColor}c0` }}>
+        <div className="flex justify-between text-[9px]" style={{ color: `${textColor}c0` }}>
           <span title="Average price">
             {row.avgPrice != null ? row.avgPrice.toLocaleString() : "-"}
           </span>
@@ -63,6 +64,64 @@ function Cell({
         </div>
       )}
     </td>
+  );
+}
+
+function ItemCard({
+  item,
+  prices,
+  config,
+}: {
+  item: SelectedItem;
+  prices: PriceRow[];
+  config: PriceCheckerConfig;
+}) {
+  const id = itemId(item);
+  const rowsForItem = prices.filter((p) => p.itemId === id);
+  // Resources, farmables, consumables etc. never vary by quality — only
+  // equipment/mounts do (see build-item-catalog.mjs's hasQuality flag).
+  const qualityLevels = item.hasQuality ? QUALITY_LEVELS : [1];
+
+  return (
+    <div className="flex-shrink-0 overflow-hidden rounded-lg border border-navy-700 bg-navy-850 p-2">
+      <div className="mb-1.5 flex items-center gap-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={`https://render.albiononline.com/v1/item/${id}.png`} alt="" className="h-8 w-8" />
+        <div>
+          <p className="text-xs font-semibold text-navy-100">
+            {item.name} [{item.tier}.{item.enchant}]
+          </p>
+          <p className="text-[10px] text-navy-400">
+            Tier {item.tier} Enchantment {item.enchant}
+          </p>
+        </div>
+      </div>
+
+      <table className="border-separate border-spacing-y-0.5">
+        <thead>
+          <tr className="text-navy-300">
+            {qualityLevels.map((quality) => (
+              <th key={quality} className="min-w-[52px] px-1 text-center text-[9px] font-medium">
+                {item.hasQuality ? QUALITY_LABELS[quality] : "Price"}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {config.cities.map((city) => {
+            const style = CITY_ROW_STYLE[city] ?? { bg: "#232e4a", text: "#dde3f2" };
+            return (
+              <tr key={city} title={city} style={{ backgroundColor: style.bg }}>
+                {qualityLevels.map((quality) => {
+                  const row = rowsForItem.find((p) => p.city === city && p.quality === quality);
+                  return <Cell key={quality} row={row} config={config} textColor={style.text} />;
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -77,70 +136,56 @@ export default function PriceGrid({
   config: PriceCheckerConfig;
   loading: boolean;
 }) {
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
   if (selectedItems.length === 0) {
     return <p className="text-sm text-navy-400">Select items above, then hit Refresh.</p>;
   }
 
+  // Group enchant variants of the same tiered item (same uniqueName) under one
+  // collapsible header, matching AFM's side-by-side card layout.
+  const groups = new Map<string, SelectedItem[]>();
+  for (const item of selectedItems) {
+    if (!groups.has(item.uniqueName)) groups.set(item.uniqueName, []);
+    groups.get(item.uniqueName)!.push(item);
+  }
+
+  function toggleGroup(key: string) {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {loading && <p className="text-sm text-navy-300">Loading prices…</p>}
-      {selectedItems.map((item) => {
-        const id = itemId(item);
-        const rowsForItem = prices.filter((p) => p.itemId === id);
-        // Resources, farmables, consumables etc. never vary by quality — only
-        // equipment/mounts do (see build-item-catalog.mjs's hasQuality flag).
-        const qualityLevels = item.hasQuality ? QUALITY_LEVELS : [1];
+      {[...groups.entries()].map(([uniqueName, items]) => {
+        const sorted = [...items].sort((a, b) => a.enchant - b.enchant);
+        const isCollapsed = collapsedGroups.has(uniqueName);
 
         return (
-          <div
-            key={id}
-            className="overflow-hidden rounded-lg border border-navy-700 bg-navy-850 p-3"
-          >
-            <div className="mb-2 flex items-center gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`https://render.albiononline.com/v1/item/${id}.png`}
-                alt=""
-                className="h-10 w-10"
-              />
-              <div>
-                <p className="font-semibold text-navy-100">{item.name}</p>
-                <p className="text-xs text-navy-400">
-                  Tier {item.tier} Enchantment {item.enchant}
-                </p>
+          <div key={uniqueName}>
+            <button
+              type="button"
+              onClick={() => toggleGroup(uniqueName)}
+              className="mb-2 flex items-center gap-2 text-sm font-semibold text-gold-400 hover:text-gold-300"
+            >
+              <span className="inline-block w-4 text-center">{isCollapsed ? "+" : "−"}</span>
+              {sorted[0].name} ({sorted.length})
+            </button>
+            {!isCollapsed && (
+              <div className="flex flex-wrap gap-3">
+                {sorted.map((item) => (
+                  <ItemCard key={itemId(item)} item={item} prices={prices} config={config} />
+                ))}
               </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full border-separate border-spacing-y-1 text-sm">
-                <thead>
-                  <tr className="text-navy-300">
-                    {qualityLevels.map((quality) => (
-                      <th key={quality} className="px-2 py-1 text-center font-medium">
-                        {item.hasQuality ? QUALITY_LABELS[quality] : "Price"}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {config.cities.map((city) => {
-                    const style = CITY_ROW_STYLE[city] ?? { bg: "#232e4a", text: "#dde3f2" };
-                    return (
-                      <tr key={city} title={city} style={{ backgroundColor: style.bg }}>
-                        {qualityLevels.map((quality) => {
-                          const row = rowsForItem.find(
-                            (p) => p.city === city && p.quality === quality,
-                          );
-                          return (
-                            <Cell key={quality} row={row} config={config} textColor={style.text} />
-                          );
-                        })}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            )}
           </div>
         );
       })}
