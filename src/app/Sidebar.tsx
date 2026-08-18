@@ -1,0 +1,57 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
+
+function HomeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <path d="M9 22V12h6v10" />
+    </svg>
+  );
+}
+
+function MarketIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
+    </svg>
+  );
+}
+
+const NAV_ITEMS: { href: string; label: string; icon: ReactNode }[] = [
+  { href: "/", label: "Home", icon: <HomeIcon /> },
+  { href: "/market-prices", label: "Market Prices", icon: <MarketIcon /> },
+];
+
+export default function Sidebar() {
+  const pathname = usePathname();
+
+  return (
+    <aside className="w-56 shrink-0 border-r border-navy-700 bg-navy-850 p-3">
+      <nav className="flex flex-col gap-1">
+        {NAV_ITEMS.map((item) => {
+          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 rounded px-3 py-2 text-sm ${
+                active
+                  ? "bg-navy-700 font-semibold text-gold-400"
+                  : "text-navy-200 hover:bg-navy-700 hover:text-navy-100"
+              }`}
+            >
+              {item.icon}
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+    </aside>
+  );
+}

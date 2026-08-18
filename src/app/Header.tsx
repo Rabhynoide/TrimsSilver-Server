@@ -6,17 +6,10 @@ export default async function Header() {
 
   return (
     <header className="border-b border-navy-700 bg-navy-850">
-      <div className="flex items-center justify-between gap-4 px-8 py-3">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="text-lg font-semibold tracking-wide text-gold-400">
-            TrimsSilver
-          </Link>
-          <nav className="flex items-center gap-4 text-sm">
-            <Link href="/market-prices" className="text-navy-200 hover:text-gold-400">
-              Market Prices
-            </Link>
-          </nav>
-        </div>
+      <div className="flex items-center justify-between gap-4 px-4 py-3">
+        <Link href="/" className="text-lg font-semibold tracking-wide text-gold-400">
+          TrimsSilver
+        </Link>
 
         {session?.user ? (
           <div className="flex items-center gap-3">
