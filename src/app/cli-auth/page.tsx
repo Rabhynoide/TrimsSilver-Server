@@ -30,7 +30,7 @@ export default async function CliAuthPage({
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
         <h1 className="text-xl font-semibold">Lien invalide</h1>
-        <p className="max-w-md text-neutral-500">
+        <p className="max-w-md text-navy-400">
           Ce lien doit provenir du client TrimsSilver et pointer vers une adresse locale
           (localhost).
         </p>
@@ -54,7 +54,7 @@ export default async function CliAuthPage({
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8 text-center">
         <h1 className="text-xl font-semibold">Connecter le client TrimsSilver</h1>
-        <p className="max-w-md text-neutral-500">
+        <p className="max-w-md text-navy-400">
           Connecte-toi avec Discord pour autoriser l&apos;application de bureau.
         </p>
         <form action={signInAndReturn}>
@@ -87,7 +87,7 @@ export default async function CliAuthPage({
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8 text-center">
       <h1 className="text-xl font-semibold">Connecter le client TrimsSilver</h1>
-      <p className="max-w-md text-neutral-500">
+      <p className="max-w-md text-navy-400">
         Autoriser l&apos;application de bureau à se connecter avec le compte{" "}
         <strong>{session.user.name}</strong> ?
       </p>

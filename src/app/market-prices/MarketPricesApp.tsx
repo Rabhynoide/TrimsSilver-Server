@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import ItemPicker from "./ItemPicker";
 import PriceGrid from "./PriceGrid";
 import FavoritesTab from "./FavoritesTab";
 import { signInWithDiscord } from "./actions";
 import {
   CITIES,
+  CITY_COLORS,
   defaultConfig,
   itemId,
   QUALITY_LEVELS,
@@ -206,14 +206,9 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-8 max-w-6xl mx-auto w-full">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Market Prices</h1>
-        <Link href="/" className="text-sm text-neutral-400 hover:text-neutral-100">
-          ← TrimsSilver
-        </Link>
-      </div>
+      <h1 className="text-2xl font-semibold text-navy-100">Market Prices</h1>
 
-      <div className="flex gap-4 border-b border-neutral-800">
+      <div className="flex gap-4 border-b border-navy-700">
         {(["checker", "favorites"] as Tab[]).map((t) => (
           <button
             key={t}
@@ -221,8 +216,8 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
             onClick={() => setTab(t)}
             className={`px-3 py-2 text-sm ${
               tab === t
-                ? "border-b-2 border-neutral-100 font-semibold"
-                : "text-neutral-400 hover:text-neutral-200"
+                ? "border-b-2 border-gold-500 font-semibold text-gold-400"
+                : "text-navy-300 hover:text-navy-100"
             }`}
           >
             {t === "checker" ? "Price Checker" : "Favorites"}
@@ -232,15 +227,15 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
 
       {tab === "checker" ? (
         <>
-          <section className="flex flex-wrap items-end gap-4">
-            <label className="flex flex-col gap-1 text-sm">
+          <section className="flex flex-wrap items-end gap-4 rounded-lg border border-navy-700 bg-navy-850 p-4">
+            <label className="flex flex-col gap-1 text-sm text-navy-300">
               Region
               <select
                 value={config.region}
                 onChange={(e) =>
                   setConfig((c) => ({ ...c, region: e.target.value as PriceCheckerConfig["region"] }))
                 }
-                className="rounded border border-neutral-700 bg-transparent px-2 py-1"
+                className="rounded border border-navy-600 bg-navy-900 px-2 py-1 text-navy-100"
               >
                 <option value="Europe">Europe</option>
                 <option value="Americas">Americas</option>
@@ -248,21 +243,21 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
               </select>
             </label>
 
-            <label className="flex flex-col gap-1 text-sm">
+            <label className="flex flex-col gap-1 text-sm text-navy-300">
               Price Type
               <select
                 value={config.priceType}
                 onChange={(e) =>
                   setConfig((c) => ({ ...c, priceType: e.target.value as PriceCheckerConfig["priceType"] }))
                 }
-                className="rounded border border-neutral-700 bg-transparent px-2 py-1"
+                className="rounded border border-navy-600 bg-navy-900 px-2 py-1 text-navy-100"
               >
                 <option value="sell">Sell Order</option>
                 <option value="buy">Buy Order</option>
               </select>
             </label>
 
-            <label className="flex flex-col gap-1 text-sm">
+            <label className="flex flex-col gap-1 text-sm text-navy-300">
               Average Days
               <input
                 type="number"
@@ -272,11 +267,11 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
                 onChange={(e) =>
                   setConfig((c) => ({ ...c, averageDays: parseInt(e.target.value, 10) || 1 }))
                 }
-                className="w-20 rounded border border-neutral-700 bg-transparent px-2 py-1"
+                className="w-20 rounded border border-navy-600 bg-navy-900 px-2 py-1 text-navy-100"
               />
             </label>
 
-            <label className="flex items-center gap-2 text-sm pb-1.5">
+            <label className="flex items-center gap-2 pb-1.5 text-sm text-navy-300">
               <input
                 type="checkbox"
                 checked={config.showAverages}
@@ -289,14 +284,14 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
               type="button"
               onClick={fetchPrices}
               disabled={selectedItems.length === 0 || pricesLoading}
-              className="rounded bg-neutral-100 text-neutral-900 px-3 py-1.5 text-sm font-medium hover:bg-white disabled:opacity-50"
+              className="rounded bg-gold-500 px-3 py-1.5 text-sm font-medium text-navy-950 hover:bg-gold-400 disabled:opacity-50"
             >
               Refresh Prices
             </button>
             <button
               type="button"
               onClick={reset}
-              className="rounded bg-neutral-800 px-3 py-1.5 text-sm hover:bg-neutral-700"
+              className="rounded border border-navy-600 px-3 py-1.5 text-sm text-navy-200 hover:bg-navy-700"
             >
               Reset
             </button>
@@ -304,7 +299,7 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
               type="button"
               onClick={exportCsv}
               disabled={prices.length === 0}
-              className="rounded bg-neutral-800 px-3 py-1.5 text-sm hover:bg-neutral-700 disabled:opacity-50"
+              className="rounded border border-navy-600 px-3 py-1.5 text-sm text-navy-200 hover:bg-navy-700 disabled:opacity-50"
             >
               Export CSV
             </button>
@@ -316,24 +311,34 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
             </p>
           )}
 
-          <fieldset className="flex flex-wrap gap-3">
-            <legend className="text-xs text-neutral-400 mb-1">Cities</legend>
-            {CITIES.map((city) => (
-              <label key={city} className="flex items-center gap-1 text-sm">
-                <input
-                  type="checkbox"
-                  checked={config.cities.includes(city)}
-                  onChange={() => toggleCity(city)}
-                />
-                {city}
-              </label>
-            ))}
+          <fieldset className="flex flex-wrap gap-2">
+            <legend className="mb-1 w-full text-xs text-navy-400">Cities</legend>
+            {CITIES.map((city) => {
+              const active = config.cities.includes(city);
+              return (
+                <button
+                  key={city}
+                  type="button"
+                  onClick={() => toggleCity(city)}
+                  style={
+                    active
+                      ? { backgroundColor: `${CITY_COLORS[city]}33`, borderColor: CITY_COLORS[city] }
+                      : undefined
+                  }
+                  className={`rounded-full border px-3 py-1 text-sm ${
+                    active ? "text-navy-100" : "border-navy-600 text-navy-400 hover:text-navy-200"
+                  }`}
+                >
+                  {city}
+                </button>
+              );
+            })}
           </fieldset>
 
           <ItemPicker catalog={catalog} selectedItems={selectedItems} onChange={setSelectedItems} />
 
           <section className="flex flex-wrap items-end gap-2">
-            <h2 className="w-full text-sm font-semibold text-neutral-400 uppercase tracking-wide">
+            <h2 className="w-full text-sm font-semibold uppercase tracking-wide text-navy-400">
               Save Favorite
             </h2>
             <input
@@ -341,28 +346,28 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
               placeholder="Favorite Name"
               value={favoriteName}
               onChange={(e) => setFavoriteName(e.target.value)}
-              className="rounded border border-neutral-700 bg-transparent px-3 py-1.5 text-sm"
+              className="rounded border border-navy-600 bg-navy-900 px-3 py-1.5 text-sm text-navy-100 placeholder:text-navy-500"
             />
             <input
               type="text"
               placeholder="Note (optional)"
               value={favoriteNote}
               onChange={(e) => setFavoriteNote(e.target.value)}
-              className="rounded border border-neutral-700 bg-transparent px-3 py-1.5 text-sm"
+              className="rounded border border-navy-600 bg-navy-900 px-3 py-1.5 text-sm text-navy-100 placeholder:text-navy-500"
             />
             <button
               type="button"
               onClick={saveFavorite}
               disabled={!isSignedIn || saving || !favoriteName.trim() || selectedItems.length === 0}
               title={!isSignedIn ? "Sign in with Discord to save favorites" : undefined}
-              className="rounded bg-neutral-800 px-3 py-1.5 text-sm hover:bg-neutral-700 disabled:opacity-50"
+              className="rounded border border-navy-600 px-3 py-1.5 text-sm text-navy-200 hover:bg-navy-700 disabled:opacity-50"
             >
               Save Favorite
             </button>
           </section>
 
           <section>
-            <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wide mb-2">
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-navy-400">
               Prices
             </h2>
             <PriceGrid

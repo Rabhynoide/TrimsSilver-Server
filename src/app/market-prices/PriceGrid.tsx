@@ -1,6 +1,6 @@
 "use client";
 
-import { itemId, QUALITY_LABELS, QUALITY_LEVELS } from "./types";
+import { itemId, CITY_COLORS, QUALITY_LABELS, QUALITY_LEVELS } from "./types";
 import type { PriceCheckerConfig, PriceRow, SelectedItem } from "./types";
 
 function ageBadge(dateStr: string): { label: string; title: string; className: string } | null {
@@ -20,7 +20,7 @@ function ageBadge(dateStr: string): { label: string; title: string; className: s
 
 function Cell({ row, config }: { row: PriceRow | undefined; config: PriceCheckerConfig }) {
   if (!row) {
-    return <td className="border border-neutral-800 px-2 py-1 text-center text-neutral-600">-</td>;
+    return <td className="border border-navy-700 px-2 py-1 text-center text-navy-500">-</td>;
   }
 
   const headline = config.priceType === "sell" ? row.sellPriceMin : row.buyPriceMax;
@@ -28,7 +28,7 @@ function Cell({ row, config }: { row: PriceRow | undefined; config: PriceChecker
   const badge = headline > 0 ? ageBadge(headlineDate) : null;
 
   return (
-    <td className="relative border border-neutral-800 px-2 py-1">
+    <td className="relative border border-navy-700 px-2 py-1">
       {badge && (
         <span
           title={badge.title}
@@ -37,9 +37,11 @@ function Cell({ row, config }: { row: PriceRow | undefined; config: PriceChecker
           {badge.label}
         </span>
       )}
-      <div className="text-center font-semibold">{headline > 0 ? headline.toLocaleString() : "-"}</div>
+      <div className="text-center font-semibold text-navy-100">
+        {headline > 0 ? headline.toLocaleString() : "-"}
+      </div>
       {config.showAverages && (
-        <div className="flex justify-between px-1 text-xs text-neutral-400">
+        <div className="flex justify-between px-1 text-xs text-navy-400">
           <span title="Average price">
             {row.avgPrice != null ? row.avgPrice.toLocaleString() : "-"}
           </span>
@@ -64,12 +66,12 @@ export default function PriceGrid({
   loading: boolean;
 }) {
   if (selectedItems.length === 0) {
-    return <p className="text-sm text-neutral-500">Select items above, then hit Refresh.</p>;
+    return <p className="text-sm text-navy-400">Select items above, then hit Refresh.</p>;
   }
 
   return (
     <div className="flex flex-col gap-6">
-      {loading && <p className="text-sm text-neutral-400">Loading prices…</p>}
+      {loading && <p className="text-sm text-navy-300">Loading prices…</p>}
       {selectedItems.map((item) => {
         const id = itemId(item);
         const rowsForItem = prices.filter((p) => p.itemId === id);
@@ -78,7 +80,7 @@ export default function PriceGrid({
         const qualityLevels = item.hasQuality ? QUALITY_LEVELS : [1];
 
         return (
-          <div key={id} className="rounded border border-neutral-800 p-3">
+          <div key={id} className="rounded-lg border border-navy-700 bg-navy-850 p-3">
             <div className="mb-2 flex items-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -87,8 +89,8 @@ export default function PriceGrid({
                 className="h-10 w-10"
               />
               <div>
-                <p className="font-semibold">{item.name}</p>
-                <p className="text-xs text-neutral-400">
+                <p className="font-semibold text-navy-100">{item.name}</p>
+                <p className="text-xs text-navy-400">
                   Tier {item.tier} Enchantment {item.enchant}
                 </p>
               </div>
@@ -97,10 +99,10 @@ export default function PriceGrid({
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr>
-                    <th className="border border-neutral-800 px-2 py-1 text-left">City</th>
+                  <tr className="bg-navy-700 text-navy-100">
+                    <th className="border border-navy-700 px-2 py-1 text-left">City</th>
                     {qualityLevels.map((quality) => (
-                      <th key={quality} className="border border-neutral-800 px-2 py-1">
+                      <th key={quality} className="border border-navy-700 px-2 py-1">
                         {item.hasQuality ? QUALITY_LABELS[quality] : "Price"}
                       </th>
                     ))}
@@ -109,7 +111,10 @@ export default function PriceGrid({
                 <tbody>
                   {config.cities.map((city) => (
                     <tr key={city}>
-                      <td className="border border-neutral-800 px-2 py-1 whitespace-nowrap">
+                      <td
+                        className="border border-navy-700 py-1 pl-3 pr-2 whitespace-nowrap text-navy-100"
+                        style={{ borderLeft: `3px solid ${CITY_COLORS[city]}` }}
+                      >
                         {city}
                       </td>
                       {qualityLevels.map((quality) => {

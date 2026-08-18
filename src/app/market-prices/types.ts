@@ -75,6 +75,19 @@ export const CITIES = [
   "Brecilien",
 ] as const;
 
+// Approximate in-game city colors, used to color-code city badges/rows
+// throughout the Price Checker.
+export const CITY_COLORS: Record<string, string> = {
+  "Black Market": "#94a3b8",
+  Brecilien: "#c05fd1",
+  Bridgewatch: "#d08a3e",
+  Caerleon: "#dc4545",
+  "Fort Sterling": "#c9d3e6",
+  Lymhurst: "#4caf6a",
+  Martlock: "#4a90d9",
+  Thetford: "#8b5fd1",
+};
+
 export const QUALITY_LEVELS = [1, 2, 3, 4, 5] as const;
 
 export const QUALITY_LABELS: Record<number, string> = {

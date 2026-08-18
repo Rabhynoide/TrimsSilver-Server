@@ -103,20 +103,20 @@ export default function ItemPicker({
   }
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wide">
+    <section className="flex flex-col gap-4 rounded-lg border border-navy-700 bg-navy-850 p-4">
+      <h2 className="text-sm font-semibold text-navy-400 uppercase tracking-wide">
         Select Items
       </h2>
 
       <div className="flex flex-wrap gap-4">
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-neutral-400 mb-1">Shop Categories</span>
+          <span className="mb-1 text-xs text-navy-400">Shop Categories</span>
           <CategoryTree catalog={catalog} selected={categoryFilter} onChange={setCategoryFilter} />
         </div>
 
         <fieldset className="flex flex-col gap-1">
-          <legend className="text-xs text-neutral-400 mb-1">Tiers</legend>
-          <div className="flex flex-wrap gap-2 max-w-56">
+          <legend className="mb-1 text-xs text-navy-400">Tiers</legend>
+          <div className="flex max-w-56 flex-wrap gap-2 text-navy-200">
             {Array.from({ length: 8 }, (_, i) => i + 1).map((tier) => (
               <label key={tier} className="flex items-center gap-1 text-sm">
                 <input
@@ -131,8 +131,8 @@ export default function ItemPicker({
         </fieldset>
 
         <fieldset className="flex flex-col gap-1">
-          <legend className="text-xs text-neutral-400 mb-1">Enchantments</legend>
-          <div className="flex flex-wrap gap-2 max-w-40">
+          <legend className="mb-1 text-xs text-navy-400">Enchantments</legend>
+          <div className="flex max-w-40 flex-wrap gap-2 text-navy-200">
             {[0, 1, 2, 3, 4].map((enchant) => (
               <label key={enchant} className="flex items-center gap-1 text-sm">
                 <input
@@ -153,20 +153,20 @@ export default function ItemPicker({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search items…"
-          className="rounded border border-neutral-700 bg-transparent px-3 py-1.5 text-sm min-w-64"
+          className="min-w-64 rounded border border-navy-600 bg-navy-900 px-3 py-1.5 text-sm text-navy-100 placeholder:text-navy-500"
         />
         <button
           type="button"
           onClick={addFiltered}
           disabled={filteredVariants.length === 0}
-          className="rounded bg-neutral-800 px-3 py-1.5 text-sm hover:bg-neutral-700 disabled:opacity-50"
+          className="rounded border border-navy-600 px-3 py-1.5 text-sm text-navy-200 hover:bg-navy-700 disabled:opacity-50"
         >
           Add Filtered ({filteredVariants.length})
         </button>
         <button
           type="button"
           onClick={clearFilters}
-          className="rounded bg-neutral-800 px-3 py-1.5 text-sm hover:bg-neutral-700"
+          className="rounded border border-navy-600 px-3 py-1.5 text-sm text-navy-200 hover:bg-navy-700"
         >
           Clear Filters
         </button>
@@ -174,14 +174,14 @@ export default function ItemPicker({
           type="button"
           onClick={() => onChange([])}
           disabled={selectedItems.length === 0}
-          className="rounded bg-neutral-800 px-3 py-1.5 text-sm hover:bg-neutral-700 disabled:opacity-50"
+          className="rounded border border-navy-600 px-3 py-1.5 text-sm text-navy-200 hover:bg-navy-700 disabled:opacity-50"
         >
           Clear Selected Items
         </button>
       </div>
 
       {searchResults.length > 0 && (
-        <ul className="max-h-64 overflow-y-auto rounded border border-neutral-700 divide-y divide-neutral-800">
+        <ul className="max-h-64 divide-y divide-navy-700 overflow-y-auto rounded border border-navy-600">
           {searchResults.map((v) => {
             const id = itemId(variantToSelectedItem(v));
             const alreadySelected = selectedIds.has(id);
@@ -191,7 +191,7 @@ export default function ItemPicker({
                   type="button"
                   onClick={() => addVariant(v)}
                   disabled={alreadySelected}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-neutral-800 disabled:opacity-40"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-navy-100 hover:bg-navy-700 disabled:opacity-40"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={variantIconUrl(v)} alt="" className="h-8 w-8" />
@@ -206,7 +206,7 @@ export default function ItemPicker({
       )}
 
       <div>
-        <p className="text-sm text-neutral-400 mb-2">
+        <p className="mb-2 text-sm text-navy-400">
           Selected Items: {selectedItems.length}/{MAX_SELECTED_ITEMS}
         </p>
         <div className="flex flex-wrap gap-2">
@@ -215,7 +215,7 @@ export default function ItemPicker({
             return (
               <span
                 key={id}
-                className="flex items-center gap-2 rounded-full bg-neutral-800 pl-1 pr-2 py-1 text-sm"
+                className="flex items-center gap-2 rounded-full border border-navy-600 bg-navy-800 py-1 pl-1 pr-2 text-sm text-navy-100"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -227,7 +227,7 @@ export default function ItemPicker({
                 <button
                   type="button"
                   onClick={() => removeItem(id)}
-                  className="text-neutral-400 hover:text-neutral-100"
+                  className="text-navy-400 hover:text-navy-100"
                   aria-label={`Remove ${item.name}`}
                 >
                   ×
