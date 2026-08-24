@@ -34,6 +34,7 @@ model User {
   apiTokens                     ApiToken[]
   marketPriceFavorites          MarketPriceFavorite[]
   farmingCalculatorSettings     FarmingCalculatorSettings?
+  craftingCalculatorSettings    CraftingCalculatorSettings?
 }
 
 // Bearer token the desktop client sends on ingest requests, minted by a signed-in browser
@@ -280,6 +281,20 @@ model MarketPriceFavorite {
 // named list — matches AFM's own single "Save Settings" control). Browser-only
 // feature, gated on the Auth.js session cookie.
 model FarmingCalculatorSettings {
+  id     String @id @default(cuid())
+  config Json
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  updatedAt DateTime @updatedAt
+}
+
+// A saved Crafting Calculator profile (region/cities, price mode, Return
+// Rate/station fee inputs, Focus/spec settings, manual prices). One row per
+// user, same single-profile shape as FarmingCalculatorSettings above.
+// Browser-only feature, gated on the Auth.js session cookie.
+model CraftingCalculatorSettings {
   id     String @id @default(cuid())
   config Json
 

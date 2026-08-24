@@ -5,6 +5,8 @@
 // exactly: Carrot Seeds/Crenellated Burdock Seeds/Goose/Pumpkin Seeds, all
 // +10%). See the Farming & Breeding Calculator plan for the full derivation.
 
+export { DEFAULT_SALES_TAX, DEFAULT_SETUP_FEE } from "./market-constants";
+
 export const FARMING_LOCATIONS = [
   "Bridgewatch",
   "Caerleon",
@@ -59,8 +61,6 @@ export const PREMIUM_GROW_TIME_MULTIPLIER = 0.5;
 export const FOCUS_COST_FLOOR = 125;
 export const FOCUS_COST_SPEC_MAX = 100;
 
-// Default market fees (editable in Settings — these are just sensible
-// defaults, not hardcoded truth). Premium values confirmed against the user's
-// own screenshot ("Sales tax 4.00%, Setup fee 2.50%" with Premium checked).
-export const DEFAULT_SALES_TAX = { premium: 0.04, standard: 0.08 };
-export const DEFAULT_SETUP_FEE = { premium: 0.025, standard: 0.03 };
+// Default market fees moved to src/data/market-constants.ts (re-exported
+// above) since they're generic to any sell order, not farming-specific —
+// Crafting reuses the same constants.
