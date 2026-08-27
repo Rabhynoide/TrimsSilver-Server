@@ -1,5 +1,6 @@
 import type { AodpRegion } from "@/lib/aodp";
 import { DEFAULT_SALES_TAX } from "@/data/market-constants";
+import type { SelectedItem } from "../market-prices/types";
 
 export const REGION_SERVER_ID: Record<AodpRegion, number> = {
   Americas: 1,
@@ -15,6 +16,14 @@ export type FlipperConfig = {
   showBlackMarketFlips: boolean;
   showCityToCityFlips: boolean;
   minTotalProfit: number;
+  // Private flips (own scanned orders) and public flips (AODP's current-price
+  // snapshot, no sign-in or scanning required) are independent, toggleable
+  // sources — see calc.ts's findFlips() vs findPublicFlips() for why they're
+  // shaped too differently to merge into one list.
+  showPrivateFlips: boolean;
+  showPublicFlips: boolean;
+  publicPriceMaxAgeHours: number;
+  selectedItems: SelectedItem[];
 };
 
 export function defaultFlipperConfig(): FlipperConfig {
@@ -26,6 +35,10 @@ export function defaultFlipperConfig(): FlipperConfig {
     showBlackMarketFlips: true,
     showCityToCityFlips: true,
     minTotalProfit: 0,
+    showPrivateFlips: true,
+    showPublicFlips: true,
+    publicPriceMaxAgeHours: 24,
+    selectedItems: [],
   };
 }
 
