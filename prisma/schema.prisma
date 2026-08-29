@@ -318,3 +318,41 @@ model JournalsCalculatorSettings {
 
   updatedAt DateTime @updatedAt
 }
+
+// Server-side cache of AODP's public current-price API, kept warm by a
+// background sync job (src/lib/priceCacheSync.ts, started once per server
+// instance from src/instrumentation.ts) instead of every user request
+// live-proxying AODP. Scoped to the item universe Farming and Journals
+// always query in full on every refresh (~650 items, quality 1 only —
+// farmables/journal materials never vary quality) — NOT Crafting's or
+// Market Prices' catalogs, which are queried selectively (one item's
+// recipe, or whatever the user picks) rather than fully every time, so
+// caching their entire catalogs (Crafting alone is ~3,900 craft-item-ids ×
+// 5 qualities × 8 cities) would be wasteful and mostly unused. Those two
+// stay live-proxied exactly as before; date fields are kept as the raw
+// AODP string (not DateTime) since that's the convention this codebase
+// already uses everywhere else for these values (see PriceRow in
+// market-prices/types.ts) — never parsed into a real Date server-side.
+model CachedMarketPrice {
+  id     String @id @default(cuid())
+  itemId String
+  city   String
+  // Always 1 for this cache's universe (see above), kept as a real column
+  // rather than hardcoded so the schema doesn't lie if that ever changes.
+  quality Int
+  region  String
+
+  sellPriceMin     Int
+  sellPriceMinDate String
+  sellPriceMax     Int
+  sellPriceMaxDate String
+  buyPriceMin      Int
+  buyPriceMinDate  String
+  buyPriceMax      Int
+  buyPriceMaxDate  String
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([itemId, city, quality, region])
+  @@index([region])
+}
