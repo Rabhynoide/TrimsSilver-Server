@@ -139,8 +139,11 @@ Client (`Rabhynoide/TrimsSilver-Client`):
 - #13 — Flipper: Public Flips (agrégation cross-utilisateurs) — new, open. See "Flipper" above.
 - #14 — Flipper: tracking "consommé" + statistiques horaires — new, open. See "Flipper" above.
 - #15 — Flipper: vérification live pas encore faite — new, open. See "Flipper" above.
+- #16 (server) — Journals Calculator: mode de prix « EMV » manquant — new, open. See "Journals Calculator" above.
+- #17 (server) — Journals Calculator: coût de remplissage manuel pour Fishing/Crafting/Mercenary/Trophy Général — new, open. See "Journals Calculator" above.
+- #18 (server) — Journals Calculator: vérification live pas encore faite (session signée) — new, open. See "Journals Calculator" above.
 
-All issues (server #1-15, client #1-7) reflect this doc as of 2026-08-27 — GitHub is the source of truth for granular tracking, this doc for the "why" behind each.
+All issues (server #1-18, client #1-7) reflect this doc as of 2026-08-29 — GitHub is the source of truth for granular tracking, this doc for the "why" behind each.
 
 ## Environment gotchas hit on the original dev machine
 
@@ -336,5 +339,5 @@ Added a public-facing `/journals` page, modeled on AFM's own Journals Calculator
 12. Verify the Flipper live via a real Discord session + real client-scanned market data (this session only verified it against seeded synthetic DB rows) — server issue #15, same pattern as #9/#12 above.
 13. Flipper fast-follows, if wanted — server issue #13 (Public Flips, cross-user aggregation via `MarketOrder.contributeToPublic` — now partially superseded by the AODP-based Public Flips shipped the same day, see above; #13 is specifically about the private-data cross-user variant) and #14 ("consumed" tracking + hourly statistics chart), both deliberately cut from V1 scope, not blockers.
 14. Fix client issue #7 — "Private Flips Mode" needs to persist and/or stop resetting on logout, so private Flipper data actually shows up without the user remembering to re-check a box every session.
-15. Verify the Journals Calculator's signed-in Save/Load Settings round-trip live (same gap as Farming/Crafting/Flipper).
-16. Journals Calculator fast-follows, if wanted: wire up an EMV price mode (journals/resources are quality-1 only, so this should be a clean fit unlike Crafting's quality 1-5 gap); consider a My-EMV-style auto fill-cost for the 4 Crafting journal families if a crafting-fame-per-item data source is ever found; re-check AFM's T8 Yield dropdown for its actual discrete option list (only the current default, 142.5%, was confirmed this session).
+15. Verify the Journals Calculator's signed-in Save/Load Settings round-trip live (same gap as Farming/Crafting/Flipper) — server issue #18.
+16. Journals Calculator fast-follows, if wanted — server issue #16 (EMV price mode — journals/resources are quality-1 only, so this should be a clean fit unlike Crafting's quality 1-5 gap) and #17 (auto fill-cost for the 9 non-gathering families, if a crafting-fame-per-item/PvE-fame data source is ever found).
