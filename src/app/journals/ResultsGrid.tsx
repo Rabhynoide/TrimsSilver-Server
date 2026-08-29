@@ -1,7 +1,8 @@
 "use client";
 
-import { JOURNAL_FAMILIES, JOURNAL_FAMILY_ORDER, JOURNAL_TIERS } from "@/data/journal-constants";
+import { JOURNAL_FAMILIES, JOURNAL_FAMILY_ORDER, JOURNAL_TIERS, journalMarketId } from "@/data/journal-constants";
 import type { EvalResult, JournalRow } from "./calc";
+import type { Scenario } from "./types";
 
 function money(value: number): string {
   return Math.round(value).toLocaleString();
@@ -12,17 +13,13 @@ export default function ResultsGrid({
   evaluate,
   selected,
   onSelect,
-  neutralProfitColor,
+  scenario,
 }: {
   rowsByFamily: Map<string, Map<number, JournalRow>>;
   evaluate: (row: JournalRow) => EvalResult;
   selected: JournalRow | null;
   onSelect: (row: JournalRow) => void;
-  // True for the "Buy Full, Sell Mats" scenario, where the full journal is
-  // never actually sold (it's the buy-side input) — coloring profit
-  // green/red there would read as a live sell signal it isn't, so it's shown
-  // in a neutral gray instead.
-  neutralProfitColor: boolean;
+  scenario: Scenario;
 }) {
   return (
     <section className="rounded-lg border border-navy-700 bg-navy-850 p-4">
@@ -63,6 +60,14 @@ export default function ResultsGrid({
                     }
                     const result = evaluate(row);
                     const isSelected = selected?.uniqueName === row.uniqueName;
+                    // The "Buy Full" scenario's cost depends on the full
+                    // journal's buy price — if that's missing, the buy line
+                    // silently defaults to 0 cost, so the profit shown is
+                    // really just revenue and shouldn't be read as a real
+                    // green/red signal.
+                    const fullPriceMissing =
+                      scenario === "buyFullSellMats" &&
+                      result.missingPrices.includes(journalMarketId(row.uniqueName, "full"));
                     return (
                       <td key={tier} className="px-1 py-1">
                         <button
@@ -71,7 +76,7 @@ export default function ResultsGrid({
                           className={`w-full rounded px-2 py-1 text-right transition-colors ${
                             isSelected
                               ? "bg-gold-500 text-navy-950 font-semibold"
-                              : neutralProfitColor
+                              : fullPriceMissing
                                 ? "text-navy-300 hover:bg-navy-700"
                                 : result.profitTotal >= 0
                                   ? "text-green-400 hover:bg-navy-700"

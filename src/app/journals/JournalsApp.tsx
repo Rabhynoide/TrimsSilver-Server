@@ -438,7 +438,7 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
         evaluate={evaluate}
         selected={selectedRow}
         onSelect={(row) => setSelectedUniqueName(row.uniqueName)}
-        neutralProfitColor={config.scenario === "buyFullSellMats"}
+        scenario={config.scenario}
       />
     </main>
   );

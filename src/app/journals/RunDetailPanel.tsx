@@ -1,7 +1,7 @@
 "use client";
 
 import type { BuyLine, EvalResult, JournalRow, SellLine } from "./calc";
-import { JOURNAL_FAMILIES } from "@/data/journal-constants";
+import { JOURNAL_FAMILIES, journalMarketId } from "@/data/journal-constants";
 import type { JournalsConfig } from "./types";
 
 function money(value: number): string {
@@ -73,9 +73,13 @@ export default function RunDetailPanel({
 }) {
   const familyMeta = JOURNAL_FAMILIES[row.family];
   const hasMissing = result.missingPrices.length > 0;
-  // "Buy Full, Sell Mats" never sells the full journal (it's the buy-side
-  // input) — green/red would misleadingly read as a live sell signal.
-  const neutralProfitColor = config.scenario === "buyFullSellMats";
+  // In "Buy Full, Sell Mats", cost depends on the full journal's buy price —
+  // if that's missing, the buy line silently defaults to 0 cost, so the
+  // profit shown is really just revenue and shouldn't be read as a real
+  // green/red signal.
+  const neutralProfitColor =
+    config.scenario === "buyFullSellMats" &&
+    result.missingPrices.includes(journalMarketId(row.uniqueName, "full"));
   const chosenFill = config.fillChoice[row.uniqueName] ?? row.fillOptions?.[0]?.uniqueName ?? null;
 
   return (
