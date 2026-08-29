@@ -1,4 +1,4 @@
-import { journalMarketId, type JournalFamily } from "@/data/journal-constants";
+import { journalMarketId, resourceMarketId, type JournalFamily } from "@/data/journal-constants";
 import type { Scenario } from "./types";
 
 export type LootEntry =
@@ -131,8 +131,9 @@ export function evaluateJournal(row: JournalRow, ctx: EvalContext): EvalResult {
       const chosenId = ctx.fillChoiceFor(row) ?? row.fillOptions[0].uniqueName;
       const option = row.fillOptions.find((o) => o.uniqueName === chosenId) ?? row.fillOptions[0];
       const units = row.maxFame / option.famevalue;
-      const fillPrice = ctx.buyPriceOf(option.uniqueName);
-      if (fillPrice == null) missing.push(option.uniqueName);
+      const fillMarketId = resourceMarketId(option.uniqueName);
+      const fillPrice = ctx.buyPriceOf(fillMarketId);
+      if (fillPrice == null) missing.push(fillMarketId);
       buyLines.push(buyLine(`Remplissage : ${option.name}`, option.uniqueName, units, fillPrice, ctx));
     } else {
       usingManualFillCost = true;
@@ -175,8 +176,9 @@ export function evaluateJournal(row: JournalRow, ctx: EvalContext): EvalResult {
           result: expected,
         });
       } else {
-        const price = ctx.sellPriceOf(entry.itemName);
-        if (price == null) missing.push(entry.itemName);
+        const lootMarketId = resourceMarketId(entry.itemName);
+        const price = ctx.sellPriceOf(lootMarketId);
+        if (price == null) missing.push(lootMarketId);
         sellLines.push(sellLine(entry.name, entry.itemName, expected, price, ctx));
       }
     }

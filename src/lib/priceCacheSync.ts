@@ -1,6 +1,6 @@
 import farmingCatalog from "@/data/farming-catalog.json";
 import journalCatalog from "@/data/journal-catalog.json";
-import { journalMarketId } from "@/data/journal-constants";
+import { journalMarketId, resourceMarketId } from "@/data/journal-constants";
 import { AODP_REGIONS, fetchCurrentPrices, type AodpRegion, type AodpPriceRow } from "./aodp";
 import { prisma } from "./prisma";
 
@@ -67,9 +67,9 @@ function journalItemIds(): Set<string> {
     names.add(journalMarketId(row.uniqueName, "empty"));
     names.add(journalMarketId(row.uniqueName, "full"));
     for (const entry of row.loot) {
-      if ("itemName" in entry) names.add(entry.itemName);
+      if ("itemName" in entry) names.add(resourceMarketId(entry.itemName));
     }
-    for (const opt of row.fillOptions ?? []) names.add(opt.uniqueName);
+    for (const opt of row.fillOptions ?? []) names.add(resourceMarketId(opt.uniqueName));
   }
   return names;
 }

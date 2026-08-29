@@ -5,7 +5,7 @@ import { AODP_REGIONS, REGION_LABELS_FR } from "@/lib/aodp";
 import { CITIES } from "../market-prices/types";
 import type { PriceRow } from "../market-prices/types";
 import { fetchMarketPrices } from "@/lib/marketPricesClient";
-import { journalMarketId, JOURNAL_FAMILY_ORDER } from "@/data/journal-constants";
+import { journalMarketId, resourceMarketId, JOURNAL_FAMILY_ORDER } from "@/data/journal-constants";
 import { evaluateJournal, type JournalRow } from "./calc";
 import {
   defaultJournalsConfig,
@@ -46,9 +46,9 @@ function collectPricedItems(rows: JournalRow[]): string[] {
     names.add(journalMarketId(row.uniqueName, "empty"));
     names.add(journalMarketId(row.uniqueName, "full"));
     for (const entry of row.loot) {
-      if ("itemName" in entry) names.add(entry.itemName);
+      if ("itemName" in entry) names.add(resourceMarketId(entry.itemName));
     }
-    for (const opt of row.fillOptions ?? []) names.add(opt.uniqueName);
+    for (const opt of row.fillOptions ?? []) names.add(resourceMarketId(opt.uniqueName));
   }
   return [...names];
 }

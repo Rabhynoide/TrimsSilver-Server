@@ -99,3 +99,19 @@ export const ENCHANT_DISTRIBUTION = { 0: 0.9445, 1: 0.05, 2: 0.005, 3: 0.0005 } 
 export function journalMarketId(uniqueName: string, state: "empty" | "full"): string {
   return state === "full" ? `${uniqueName}_FULL` : uniqueName;
 }
+
+// Enchanted resources (loot rewards and fill-in materials, e.g. wood/planks/
+// ore/metal bar/fiber/cloth/hide/leather/rock) are each their own standalone
+// game item named "UNIQUENAME_LEVELN" (see build-item-catalog.mjs) — but
+// AODP still expects an "@N" appended on top of that for price queries, i.e.
+// "UNIQUENAME_LEVELN@N", same convention already used by
+// market-prices/types.ts's itemId(). journal-catalog.json's loot/fillOptions
+// entries store the bare "_LEVELN" id (straight from the game's own lootlist/
+// validitem data), so this needs to be applied wherever that id is used to
+// fetch or look up a price — confirmed live: AODP has real data under
+// "T4_PLANKS_LEVEL1@1" while "T4_PLANKS_LEVEL1" alone returns nothing.
+const RESOURCE_LEVEL_SUFFIX = /_LEVEL(\d)$/;
+export function resourceMarketId(uniqueName: string): string {
+  const match = uniqueName.match(RESOURCE_LEVEL_SUFFIX);
+  return match ? `${uniqueName}@${match[1]}` : uniqueName;
+}
