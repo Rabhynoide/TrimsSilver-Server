@@ -15,7 +15,7 @@ function ageBadge(dateStr: string): { label: string; title: string; className: s
   if (hours < 0) return null;
 
   const label = hours < 10 ? hours.toFixed(1) : Math.round(hours).toString();
-  const title = `${label} hour${hours >= 1.05 || hours < 0.95 ? "s" : ""} old`;
+  const title = `Il y a ${label} heure${hours >= 1.05 || hours < 0.95 ? "s" : ""}`;
 
   if (hours < 2) return { label, title, className: "bg-green-700" };
   if (hours < 24) return { label, title, className: "bg-amber-700" };
@@ -39,7 +39,7 @@ function Cell({
     return (
       <td
         onClick={onSelect}
-        title="Click to view price history"
+        title="Cliquez pour voir l'historique des prix"
         className={`min-w-[68px] cursor-pointer px-1.5 py-1 text-center text-sm hover:brightness-110 ${active ? "ring-1 ring-inset ring-white/60" : ""}`}
         style={{ color: `${textColor}80` }}
       >
@@ -55,7 +55,7 @@ function Cell({
   return (
     <td
       onClick={onSelect}
-      title="Click to view price history"
+      title="Cliquez pour voir l'historique des prix"
       className={`min-w-[68px] cursor-pointer px-1.5 py-1 hover:brightness-110 ${active ? "ring-1 ring-inset ring-white/60" : ""}`}
     >
       <div className="flex items-center justify-center gap-1">
@@ -73,10 +73,10 @@ function Cell({
       </div>
       {config.showAverages && (
         <div className="flex justify-between text-[11px]" style={{ color: `${textColor}c0` }}>
-          <span title="Average price">
+          <span title="Prix moyen">
             {row.avgPrice != null ? row.avgPrice.toLocaleString() : "-"}
           </span>
-          <span title="Average amount traded">
+          <span title="Quantité moyenne échangée">
             {row.avgAmount != null ? row.avgAmount.toLocaleString() : "-"}
           </span>
         </div>
@@ -114,7 +114,7 @@ function ItemCard({
             {item.name} [{item.tier}.{item.enchant}]
           </p>
           <p className="text-xs text-navy-400">
-            Tier {item.tier} Enchantment {item.enchant}
+            Tier {item.tier} Enchantement {item.enchant}
           </p>
         </div>
       </div>
@@ -124,7 +124,7 @@ function ItemCard({
           <tr className="divide-x divide-navy-700 text-navy-300">
             {qualityLevels.map((quality) => (
               <th key={quality} className="min-w-[68px] px-1.5 text-center text-xs font-medium">
-                {item.hasQuality ? QUALITY_LABELS[quality] : "Price"}
+                {item.hasQuality ? QUALITY_LABELS[quality] : "Prix"}
               </th>
             ))}
           </tr>
@@ -191,7 +191,11 @@ export default function PriceGrid({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   if (selectedItems.length === 0) {
-    return <p className="text-sm text-navy-400">Select items above, then hit Refresh.</p>;
+    return (
+      <p className="text-sm text-navy-400">
+        Sélectionnez des objets ci-dessus, puis cliquez sur Rafraîchir.
+      </p>
+    );
   }
 
   // Group enchant variants of the same tiered item (same uniqueName) under one
@@ -216,7 +220,7 @@ export default function PriceGrid({
 
   return (
     <div className="flex flex-col gap-4">
-      {loading && <p className="text-sm text-navy-300">Loading prices…</p>}
+      {loading && <p className="text-sm text-navy-300">Chargement des prix…</p>}
       {[...groups.entries()].map(([uniqueName, items]) => {
         const sorted = [...items].sort((a, b) => a.enchant - b.enchant);
         const isCollapsed = collapsedGroups.has(uniqueName);

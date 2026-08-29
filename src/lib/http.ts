@@ -7,7 +7,7 @@ export async function readJsonResponse<T = unknown>(res: Response): Promise<T> {
   const contentType = res.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
     throw new Error(
-      `Server returned an unexpected response (status ${res.status}, not JSON) — this usually means a temporary server or network issue. Try refreshing again in a moment.`,
+      `Le serveur a renvoyé une réponse inattendue (statut ${res.status}, pas du JSON) — cela indique généralement un problème réseau ou serveur temporaire. Réessayez dans un instant.`,
     );
   }
   return res.json();

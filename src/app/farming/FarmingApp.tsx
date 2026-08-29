@@ -104,7 +104,7 @@ export default function FarmingApp({ isSignedIn }: { isSignedIn: boolean }) {
       const results = await fetchMarketPrices({ items, locations, qualities: "1", region: config.region, averageDays });
       setPrices(results);
     } catch (err) {
-      setPricesError(err instanceof Error ? err.message : "Network error");
+      setPricesError(err instanceof Error ? err.message : "Erreur réseau");
       setPrices([]);
     } finally {
       setPricesLoading(false);
@@ -214,7 +214,7 @@ export default function FarmingApp({ isSignedIn }: { isSignedIn: boolean }) {
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-8 w-full">
-      <h1 className="text-2xl font-semibold text-navy-100">Farming &amp; Breeding Calculator</h1>
+      <h1 className="text-2xl font-semibold text-navy-100">Calculateur d&apos;agriculture et d&apos;élevage</h1>
 
       <div className="flex gap-4 border-b border-navy-700">
         {(["settings", "results"] as Tab[]).map((t) => (
@@ -228,14 +228,14 @@ export default function FarmingApp({ isSignedIn }: { isSignedIn: boolean }) {
                 : "text-navy-300 hover:text-navy-100"
             }`}
           >
-            {t === "settings" ? "Settings" : "Results"}
+            {t === "settings" ? "Paramètres" : "Résultats"}
           </button>
         ))}
       </div>
 
       {pricesError && (
         <p className="rounded border border-red-800 bg-red-950/40 px-3 py-2 text-sm text-red-300">
-          Failed to load prices: {pricesError}
+          Échec du chargement des prix : {pricesError}
         </p>
       )}
 

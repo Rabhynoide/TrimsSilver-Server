@@ -23,7 +23,8 @@ export default function FavoritesTab({
     return (
       <div className="flex flex-col items-start gap-3">
         <p className="text-sm text-navy-300">
-          Sign in with Discord to save and load Price Checker favorites.
+          Connectez-vous avec Discord pour enregistrer et charger vos favoris du vérificateur de
+          prix.
         </p>
         <button
           type="button"
@@ -37,13 +38,14 @@ export default function FavoritesTab({
   }
 
   if (loading) {
-    return <p className="text-sm text-navy-300">Loading favorites…</p>;
+    return <p className="text-sm text-navy-300">Chargement des favoris…</p>;
   }
 
   if (favorites.length === 0) {
     return (
       <p className="text-sm text-navy-400">
-        No favorites yet. Build a selection on the Price Checker tab and save it.
+        Aucun favori pour le moment. Créez une sélection dans l&apos;onglet Vérificateur de prix
+        et enregistrez-la.
       </p>
     );
   }
@@ -58,7 +60,7 @@ export default function FavoritesTab({
           <div>
             <p className="font-medium text-navy-100">{favorite.name}</p>
             {favorite.note && <p className="text-xs text-navy-400">{favorite.note}</p>}
-            <p className="text-xs text-navy-500">{favorite.config.items.length} items</p>
+            <p className="text-xs text-navy-500">{favorite.config.items.length} objets</p>
           </div>
           <div className="flex gap-2">
             <button
@@ -66,21 +68,21 @@ export default function FavoritesTab({
               onClick={() => onLoad(favorite)}
               className="rounded border border-navy-600 px-3 py-1.5 text-sm text-navy-200 hover:bg-navy-700"
             >
-              Load
+              Charger
             </button>
             <button
               type="button"
               onClick={() => onDuplicate(favorite)}
               className="rounded border border-navy-600 px-3 py-1.5 text-sm text-navy-200 hover:bg-navy-700"
             >
-              Duplicate
+              Dupliquer
             </button>
             <button
               type="button"
               onClick={() => onDelete(favorite)}
               className="rounded bg-red-900 px-3 py-1.5 text-sm text-red-100 hover:bg-red-800"
             >
-              Delete
+              Supprimer
             </button>
           </div>
         </li>

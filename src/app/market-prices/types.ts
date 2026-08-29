@@ -105,11 +105,11 @@ export const CITY_ROW_STYLE: Record<string, { bg: string; text: string }> = {
 export const QUALITY_LEVELS = [1, 2, 3, 4, 5] as const;
 
 export const QUALITY_LABELS: Record<number, string> = {
-  1: "Normal",
-  2: "Good",
-  3: "Outstanding",
-  4: "Excellent",
-  5: "Masterpiece",
+  1: "Normale",
+  2: "Acceptable",
+  3: "Admirable",
+  4: "Formidable",
+  5: "Exceptionnelle",
 };
 
 export type HistoryPoint = { timestamp: string; avgPrice: number; itemCount: number };

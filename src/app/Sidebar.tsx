@@ -62,11 +62,11 @@ function JournalsIcon() {
 }
 
 const NAV_ITEMS: { href: string; label: string; icon: ReactNode }[] = [
-  { href: "/", label: "Home", icon: <HomeIcon /> },
-  { href: "/market-prices", label: "Market Prices", icon: <MarketIcon /> },
-  { href: "/farming", label: "Farming & Breeding", icon: <FarmingIcon /> },
-  { href: "/crafting", label: "Crafting Calculator", icon: <CraftingIcon /> },
-  { href: "/journals", label: "Journals Calculator", icon: <JournalsIcon /> },
+  { href: "/", label: "Accueil", icon: <HomeIcon /> },
+  { href: "/market-prices", label: "Prix du marché", icon: <MarketIcon /> },
+  { href: "/farming", label: "Agriculture et élevage", icon: <FarmingIcon /> },
+  { href: "/crafting", label: "Calculateur d'artisanat", icon: <CraftingIcon /> },
+  { href: "/journals", label: "Calculateur de registres", icon: <JournalsIcon /> },
   { href: "/flipper", label: "Flipper", icon: <FlipperIcon /> },
 ];
 

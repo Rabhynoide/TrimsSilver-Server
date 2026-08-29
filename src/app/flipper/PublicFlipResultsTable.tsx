@@ -53,10 +53,16 @@ function FlipRow({ flip, item }: { flip: PublicFlipOpportunity; item: SelectedIt
       <td className="w-24 px-2 py-1.5 text-right text-sm text-navy-300">
         {flip.avgAmount != null ? flip.avgAmount.toLocaleString() : "-"}
       </td>
-      <td className="w-24 px-2 py-1.5 text-right text-xs text-navy-400" title={`${flip.sourceCity} sell price age`}>
+      <td
+        className="w-24 px-2 py-1.5 text-right text-xs text-navy-400"
+        title={`Âge du prix de vente à ${flip.sourceCity}`}
+      >
         {ageLabel(flip.buyPriceDate)}
       </td>
-      <td className="w-24 px-2 py-1.5 text-right text-xs text-navy-400" title={`${flip.destCity} buy price age`}>
+      <td
+        className="w-24 px-2 py-1.5 text-right text-xs text-navy-400"
+        title={`Âge du prix d'achat à ${flip.destCity}`}
+      >
         {ageLabel(flip.sellPriceDate)}
       </td>
     </tr>
@@ -96,35 +102,39 @@ export default function PublicFlipResultsTable({
   }
 
   if (selectedItems.length === 0) {
-    return <p className="text-sm text-navy-400">Select items above to scan public AODP prices for flips.</p>;
+    return (
+      <p className="text-sm text-navy-400">
+        Sélectionnez des objets ci-dessus pour scanner les prix publics AODP à la recherche de flips.
+      </p>
+    );
   }
 
   if (flips.length === 0) {
     return (
       <p className="text-sm text-navy-400">
-        No profitable public flips found among the selected items. Try adding more items, or raising the
-        max price age.
+        Aucun flip public rentable trouvé parmi les objets sélectionnés. Essayez d&apos;ajouter d&apos;autres
+        objets, ou d&apos;augmenter l&apos;âge max des prix.
       </p>
     );
   }
 
   const headers: { key: SortKey | null; label: string; align: string; width: string; title?: string }[] = [
-    { key: null, label: "Item", align: "text-left", width: "w-64" },
-    { key: null, label: "Quality", align: "text-center", width: "w-28" },
+    { key: null, label: "Objet", align: "text-left", width: "w-64" },
+    { key: null, label: "Qualité", align: "text-center", width: "w-28" },
     { key: null, label: "Route", align: "text-left", width: "w-56" },
-    { key: "buyPrice", label: "Buy", align: "text-right", width: "w-24" },
-    { key: null, label: "Sell (net)", align: "text-right", width: "w-24" },
-    { key: "profitPerUnit", label: "Profit/Unit", align: "text-right", width: "w-24" },
+    { key: "buyPrice", label: "Achat", align: "text-right", width: "w-24" },
+    { key: null, label: "Vente (net)", align: "text-right", width: "w-24" },
+    { key: "profitPerUnit", label: "Profit/Unité", align: "text-right", width: "w-24" },
     { key: "roi", label: "ROI", align: "text-right", width: "w-20" },
     {
       key: "avgAmount",
-      label: "Avg/Day",
+      label: "Moy/Jour",
       align: "text-right",
       width: "w-24",
-      title: "Average amount traded per day recently — a rough liquidity signal, not a guaranteed order size",
+      title: "Quantité moyenne échangée par jour récemment — un signal de liquidité approximatif, pas une taille d'ordre garantie",
     },
-    { key: null, label: "Buy Age", align: "text-right", width: "w-24" },
-    { key: null, label: "Sell Age", align: "text-right", width: "w-24" },
+    { key: null, label: "Âge achat", align: "text-right", width: "w-24" },
+    { key: null, label: "Âge vente", align: "text-right", width: "w-24" },
   ];
 
   return (

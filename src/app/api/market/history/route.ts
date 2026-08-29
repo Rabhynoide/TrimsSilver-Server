@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error("Market history proxy failed", err);
     return NextResponse.json(
-      { error: "Failed to fetch history from AODP", detail: err instanceof Error ? err.message : String(err) },
+      { error: "Échec de la récupération de l'historique depuis AODP", detail: err instanceof Error ? err.message : String(err) },
       { status: 502 },
     );
   }

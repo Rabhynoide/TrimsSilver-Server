@@ -1,6 +1,6 @@
 "use client";
 
-import { AODP_REGIONS } from "@/lib/aodp";
+import { AODP_REGIONS, REGION_LABELS_FR } from "@/lib/aodp";
 import { LOCATION_BONUS_STEMS, FARMING_LOCATIONS, type FarmingLocation } from "@/data/farming-constants";
 import type { FarmingRecipe, FarmingSpecDef } from "./calc";
 import { isPlantRecipe } from "./calc";
@@ -23,10 +23,10 @@ function recipeDisplayName(recipe: FarmingRecipe): string {
 }
 
 const PRICE_MODE_LABELS: Record<PriceMode, string> = {
-  current: "AODP Current",
-  average: "AODP Average",
-  emv: "My EMV",
-  manual: "Manual",
+  current: "AODP Actuel",
+  average: "AODP Moyen",
+  emv: "Mon EMV",
+  manual: "Manuel",
 };
 
 export default function SettingsPanel({
@@ -62,9 +62,9 @@ export default function SettingsPanel({
     : ["current", "average", "manual"];
 
   const groups: { key: FarmingSpecDef["group"]; label: string }[] = [
-    { key: "crops", label: "Crop Farmer" },
-    { key: "animals", label: "Animal Breeder" },
-    { key: "herbs", label: "Herbalist" },
+    { key: "crops", label: "Agriculteur" },
+    { key: "animals", label: "Éleveur" },
+    { key: "herbs", label: "Herboriste" },
   ];
 
   function setSpec(id: string, level: number) {
@@ -75,10 +75,10 @@ export default function SettingsPanel({
     <div className="flex flex-col gap-6">
       <section className="rounded-lg border border-navy-700 bg-navy-850 p-4">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy-400">
-          Farming Location
+          Lieu de production
         </h2>
         <label className="flex flex-col gap-1 text-sm text-navy-300">
-          Location
+          Lieu
           <select
             value={config.location}
             onChange={(e) => onChange((c) => ({ ...c, location: e.target.value as FarmingLocation }))}
@@ -95,8 +95,8 @@ export default function SettingsPanel({
         {bonusedItems.length > 0 && (
           <div className="mt-3">
             <p className="mb-2 text-xs text-navy-400">
-              {config.location} local production bonus (+10% output amount — not seed/offspring
-              return chance)
+              Bonus de production locale de {config.location} (+10% de quantité produite — pas la
+              chance de récupération de graine/petit)
             </p>
             <div className="flex flex-wrap gap-2">
               {bonusedItems.map((recipe) => (
@@ -113,7 +113,7 @@ export default function SettingsPanel({
                   <span className="text-xs text-navy-200">
                     {recipeDisplayName(recipe)} [{recipe.tier}.0]
                   </span>
-                  <span className="text-xs font-semibold text-gold-400">+10% output</span>
+                  <span className="text-xs font-semibold text-gold-400">+10% de production</span>
                 </div>
               ))}
             </div>
@@ -123,7 +123,7 @@ export default function SettingsPanel({
 
       <section className="rounded-lg border border-navy-700 bg-navy-850 p-4">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy-400">
-          User Settings
+          Paramètres utilisateur
         </h2>
         <label className="flex items-center gap-2 text-sm text-navy-300">
           <input
@@ -139,15 +139,16 @@ export default function SettingsPanel({
             checked={config.useFocus}
             onChange={(e) => onChange((c) => ({ ...c, useFocus: e.target.checked }))}
           />
-          Use Focus (watering/nurturing)
+          Utiliser la Concentration (arrosage/soin)
         </label>
         {!config.useFocus && (
           <p className="mt-1 text-xs text-navy-400">
-            Results use base tier yield only — no spec bonus, no Focus cost.
+            Les résultats utilisent uniquement le rendement de base du tier — pas de bonus de
+            spécialisation, pas de coût en Concentration.
           </p>
         )}
         <label className="mt-2 flex items-center gap-2 text-sm text-navy-300">
-          Production slots
+          Emplacements de production
           <input
             type="number"
             min={0}
@@ -157,24 +158,25 @@ export default function SettingsPanel({
           />
         </label>
         <p className="mt-1 text-xs text-navy-400">
-          1 field/pasture = 9 slots. Used only for the &quot;Total Profit/Day&quot; column in
-          Results — an estimate of real earnings if every slot ran that item.
+          1 champ/pâturage = 9 emplacements. Utilisé uniquement pour la colonne &quot;Profit total
+          / jour&quot; des résultats — une estimation des gains réels si chaque emplacement
+          produisait cet article.
         </p>
         <p className="mt-2 text-xs text-navy-400">
-          Sales tax {(salesTaxRateFor(config.premium) * 100).toFixed(2)}%
+          Taxe de vente {(salesTaxRateFor(config.premium) * 100).toFixed(2)}%
         </p>
         <p className="text-xs text-navy-400">
-          Setup fee {(setupFeeRateFor(config.premium) * 100).toFixed(2)}%
+          Frais de placement {(setupFeeRateFor(config.premium) * 100).toFixed(2)}%
         </p>
       </section>
 
       <section className="rounded-lg border border-navy-700 bg-navy-850 p-4">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy-400">
-          Market Settings
+          Paramètres du marché
         </h2>
         <div className="flex flex-wrap items-end gap-4">
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Region
+            Région
             <select
               value={config.region}
               onChange={(e) =>
@@ -184,13 +186,13 @@ export default function SettingsPanel({
             >
               {AODP_REGIONS.map((region) => (
                 <option key={region} value={region}>
-                  {region}
+                  {REGION_LABELS_FR[region]}
                 </option>
               ))}
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Buy From
+            Acheter à
             <select
               value={config.buyFrom}
               onChange={(e) => onChange((c) => ({ ...c, buyFrom: e.target.value }))}
@@ -204,7 +206,7 @@ export default function SettingsPanel({
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Sell To
+            Vendre à
             <select
               value={config.sellTo}
               onChange={(e) => onChange((c) => ({ ...c, sellTo: e.target.value }))}
@@ -218,7 +220,7 @@ export default function SettingsPanel({
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Price Mode
+            Mode de prix
             <select
               value={config.priceMode}
               onChange={(e) => onChange((c) => ({ ...c, priceMode: e.target.value as PriceMode }))}
@@ -233,7 +235,7 @@ export default function SettingsPanel({
           </label>
           {config.priceMode === "average" && (
             <label className="flex flex-col gap-1 text-sm text-navy-300">
-              Average Days
+              Jours de moyenne
               <input
                 type="number"
                 min={1}
@@ -249,24 +251,27 @@ export default function SettingsPanel({
         </div>
         {config.priceMode === "manual" && (
           <p className="mt-2 text-xs text-navy-400">
-            Set manual prices per item from the Results tab (click a missing-price row).
+            Définissez les prix manuels par article depuis l&apos;onglet Résultats (cliquez sur une
+            ligne avec un prix manquant).
           </p>
         )}
       </section>
 
       <section className="rounded-lg border border-navy-700 bg-navy-850 p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy-400">Specs</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy-400">
+          Spécialisations
+        </h2>
         {isSignedIn ? (
           <div className="mb-3 flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-sm text-navy-300">
-              Character
+              Personnage
               <select
                 value={config.characterName ?? ""}
                 onChange={(e) => onSelectCharacter(e.target.value)}
                 className="w-48 rounded border border-navy-600 bg-navy-900 px-2 py-1 text-navy-100"
               >
                 <option value="" disabled>
-                  Select a character
+                  Sélectionner un personnage
                 </option>
                 {characters.map((c) => (
                   <option key={c.characterName} value={c.characterName}>
@@ -280,19 +285,20 @@ export default function SettingsPanel({
               onClick={onRefreshSpecs}
               className="rounded border border-navy-600 px-3 py-1.5 text-sm text-navy-200 hover:bg-navy-700"
             >
-              Refresh Specs
+              Actualiser les spécialisations
             </button>
             {characters.length === 0 && (
               <p className="text-xs text-navy-400">
-                No synced characters yet — make sure &quot;Upload Specs to TrimsSilver&quot; is
-                enabled in TrimsSilver-Client, or enter levels manually below.
+                Aucun personnage synchronisé pour l&apos;instant — assurez-vous que &quot;Upload
+                Specs to TrimsSilver&quot; est activé dans TrimsSilver-Client, ou saisissez les
+                niveaux manuellement ci-dessous.
               </p>
             )}
           </div>
         ) : (
           <p className="mb-3 text-xs text-navy-400">
-            Sign in with Discord to auto-fill from your TrimsSilver-Client synced characters, or
-            enter levels manually below.
+            Connectez-vous avec Discord pour pré-remplir avec vos personnages synchronisés depuis
+            TrimsSilver-Client, ou saisissez les niveaux manuellement ci-dessous.
           </p>
         )}
 
@@ -343,10 +349,10 @@ export default function SettingsPanel({
           type="button"
           onClick={onSave}
           disabled={!isSignedIn || saving}
-          title={!isSignedIn ? "Sign in with Discord to save settings" : undefined}
+          title={!isSignedIn ? "Connectez-vous avec Discord pour enregistrer les paramètres" : undefined}
           className="rounded border border-navy-600 px-4 py-2 text-sm text-navy-200 hover:bg-navy-700 disabled:opacity-50"
         >
-          {saving ? "Saving…" : "Save Settings"}
+          {saving ? "Enregistrement…" : "Enregistrer les paramètres"}
         </button>
         {!isSignedIn && (
           <button

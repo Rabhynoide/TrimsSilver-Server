@@ -40,7 +40,7 @@ function iconId(itemTypeId: string, enchant: number): string {
 }
 
 function locationLabel(city: string | null, locationId: string): string {
-  return city ?? `Unknown (${locationId})`;
+  return city ?? `Inconnu (${locationId})`;
 }
 
 function FlipRow({
@@ -112,17 +112,18 @@ function FlipRow({
         <tr className="border-b border-navy-800 bg-navy-900/60">
           <td colSpan={9} className="px-4 py-3">
             <div className="flex flex-col gap-1 text-xs text-navy-400">
-              <p>Item type id: {flip.itemTypeId}</p>
+              <p>Id du type d&apos;objet : {flip.itemTypeId}</p>
               <p>
-                Buy: order {flip.buyOrderId} at {locationLabel(flip.sourceCity, flip.sourceLocationId)},{" "}
-                {flip.buyAmount} available, scanned {ageLabel(flip.buyUpdatedAt)} ago
+                Achat : ordre {flip.buyOrderId} à {locationLabel(flip.sourceCity, flip.sourceLocationId)},{" "}
+                {flip.buyAmount} disponible(s), scanné il y a {ageLabel(flip.buyUpdatedAt)}
               </p>
               <p>
-                Sell: order {flip.sellOrderId} at {locationLabel(flip.destCity, flip.destLocationId)},{" "}
-                {flip.sellAmount} available, scanned {ageLabel(flip.sellUpdatedAt)} ago
+                Vente : ordre {flip.sellOrderId} à {locationLabel(flip.destCity, flip.destLocationId)},{" "}
+                {flip.sellAmount} disponible(s), scanné il y a {ageLabel(flip.sellUpdatedAt)}
               </p>
               <p>
-                Sell price {money(flip.sellPrice)} net of sales tax → {money(flip.netSellPrice)} per unit
+                Prix de vente {money(flip.sellPrice)} net de la taxe de vente → {money(flip.netSellPrice)} par
+                unité
               </p>
             </div>
           </td>
@@ -173,21 +174,21 @@ export default function FlipResultsTable({
   if (flips.length === 0) {
     return (
       <p className="text-sm text-navy-400">
-        No profitable flips found in your scanned data. Scan a city market and the Black Market in-game
-        with the desktop client, then Refresh Orders above.
+        Aucun flip rentable trouvé dans vos données scannées. Scannez un marché de ville et le Black Market
+        en jeu avec le client de bureau, puis Rafraîchir les ordres ci-dessus.
       </p>
     );
   }
 
   const headers: { key: SortKey | null; label: string; align: string; width: string }[] = [
-    { key: null, label: "Item", align: "text-left", width: "w-64" },
-    { key: null, label: "Quality", align: "text-center", width: "w-28" },
+    { key: null, label: "Objet", align: "text-left", width: "w-64" },
+    { key: null, label: "Qualité", align: "text-center", width: "w-28" },
     { key: null, label: "Route", align: "text-left", width: "w-56" },
-    { key: "buyPrice", label: "Buy", align: "text-right", width: "w-24" },
-    { key: null, label: "Sell (net)", align: "text-right", width: "w-24" },
-    { key: "quantity", label: "Qty", align: "text-right", width: "w-16" },
-    { key: "profitPerUnit", label: "Profit/Unit", align: "text-right", width: "w-24" },
-    { key: "totalProfit", label: "Total Profit", align: "text-right", width: "w-28" },
+    { key: "buyPrice", label: "Achat", align: "text-right", width: "w-24" },
+    { key: null, label: "Vente (net)", align: "text-right", width: "w-24" },
+    { key: "quantity", label: "Qté", align: "text-right", width: "w-16" },
+    { key: "profitPerUnit", label: "Profit/Unité", align: "text-right", width: "w-24" },
+    { key: "totalProfit", label: "Profit total", align: "text-right", width: "w-28" },
     { key: "roi", label: "ROI", align: "text-right", width: "w-20" },
   ];
 

@@ -2,11 +2,22 @@
 
 import { useMemo, useState } from "react";
 import type { CatalogItem } from "../market-prices/types";
-import { QUALITY_LABELS, QUALITY_LEVELS } from "../market-prices/types";
+import { QUALITY_LEVELS } from "../market-prices/types";
 import CategoryTree from "../market-prices/CategoryTree";
 import type { CraftItem } from "./calc";
 
 const MAX_SEARCH_RESULTS = 30;
+
+// Display-only French labels for quality levels (verified against the game's
+// localization.json, tuid @ITEMDETAILS_STATS_QUALITY_1..5) — QUALITY_LEVELS
+// values stay untranslated since they're used as the underlying state.
+const QUALITY_LABELS_FR: Record<number, string> = {
+  1: "Normale",
+  2: "Acceptable",
+  3: "Admirable",
+  4: "Formidable",
+  5: "Exceptionnelle",
+};
 
 function iconUrl(uniqueName: string, enchant: number): string {
   const id = enchant === 0 ? uniqueName : `${uniqueName}@${enchant}`;
@@ -63,7 +74,7 @@ export default function ItemRecipePicker({
 
   return (
     <section className="flex flex-col gap-4 rounded-lg border border-navy-700 bg-navy-850 p-4">
-      <h2 className="text-sm font-semibold text-navy-400 uppercase tracking-wide">Item &amp; Recipe</h2>
+      <h2 className="text-sm font-semibold text-navy-400 uppercase tracking-wide">Objet &amp; recette</h2>
 
       <div className="flex flex-wrap items-center gap-2">
         <CategoryTree catalog={catalog.filter((i) => craftItemsByName.has(i.uniqueName))} selected={categoryFilter} onChange={setCategoryFilter} />
@@ -71,7 +82,7 @@ export default function ItemRecipePicker({
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search items…"
+          placeholder="Rechercher des objets…"
           className="min-w-64 rounded border border-navy-600 bg-navy-900 px-3 py-1.5 text-sm text-navy-100 placeholder:text-navy-500"
         />
       </div>
@@ -108,12 +119,12 @@ export default function ItemRecipePicker({
               {selectedCatalogItem.name} [T{selectedCatalogItem.tier}.{selectedEnchant}]
             </span>
             {selectedCraftItem.specAchievementId && (
-              <span className="text-xs text-navy-400">Spec: {selectedCraftItem.specAchievementId}</span>
+              <span className="text-xs text-navy-400">Spécialisation : {selectedCraftItem.specAchievementId}</span>
             )}
           </div>
 
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Enchant
+            Enchantement
             <select
               value={selectedEnchant}
               onChange={(e) => onSelectEnchant(parseInt(e.target.value, 10))}
@@ -128,7 +139,7 @@ export default function ItemRecipePicker({
           </label>
 
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Sell Quality
+            Qualité de vente
             <select
               value={outputQuality}
               onChange={(e) => onSelectQuality(parseInt(e.target.value, 10))}
@@ -136,7 +147,7 @@ export default function ItemRecipePicker({
             >
               {QUALITY_LEVELS.map((q) => (
                 <option key={q} value={q}>
-                  {QUALITY_LABELS[q]}
+                  {QUALITY_LABELS_FR[q]}
                 </option>
               ))}
             </select>

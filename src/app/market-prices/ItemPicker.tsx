@@ -105,12 +105,12 @@ export default function ItemPicker({
   return (
     <section className="flex flex-col gap-4 rounded-lg border border-navy-700 bg-navy-850 p-4">
       <h2 className="text-sm font-semibold text-navy-400 uppercase tracking-wide">
-        Select Items
+        Sélectionner des objets
       </h2>
 
       <div className="flex flex-wrap gap-4">
         <div className="flex flex-col gap-1">
-          <span className="mb-1 text-xs text-navy-400">Shop Categories</span>
+          <span className="mb-1 text-xs text-navy-400">Catégories de la boutique</span>
           <CategoryTree catalog={catalog} selected={categoryFilter} onChange={setCategoryFilter} />
         </div>
 
@@ -131,7 +131,7 @@ export default function ItemPicker({
         </fieldset>
 
         <fieldset className="flex flex-col gap-1">
-          <legend className="mb-1 text-xs text-navy-400">Enchantments</legend>
+          <legend className="mb-1 text-xs text-navy-400">Enchantements</legend>
           <div className="flex max-w-40 flex-wrap gap-2 text-navy-200">
             {[0, 1, 2, 3, 4].map((enchant) => (
               <label key={enchant} className="flex items-center gap-1 text-sm">
@@ -152,7 +152,7 @@ export default function ItemPicker({
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search items…"
+          placeholder="Rechercher des objets…"
           className="min-w-64 rounded border border-navy-600 bg-navy-900 px-3 py-1.5 text-sm text-navy-100 placeholder:text-navy-500"
         />
         <button
@@ -161,14 +161,14 @@ export default function ItemPicker({
           disabled={filteredVariants.length === 0}
           className="rounded border border-navy-600 px-3 py-1.5 text-sm text-navy-200 hover:bg-navy-700 disabled:opacity-50"
         >
-          Add Filtered ({filteredVariants.length})
+          Ajouter les objets filtrés ({filteredVariants.length})
         </button>
         <button
           type="button"
           onClick={clearFilters}
           className="rounded border border-navy-600 px-3 py-1.5 text-sm text-navy-200 hover:bg-navy-700"
         >
-          Clear Filters
+          Effacer les filtres
         </button>
         <button
           type="button"
@@ -176,7 +176,7 @@ export default function ItemPicker({
           disabled={selectedItems.length === 0}
           className="rounded border border-navy-600 px-3 py-1.5 text-sm text-navy-200 hover:bg-navy-700 disabled:opacity-50"
         >
-          Clear Selected Items
+          Effacer les objets sélectionnés
         </button>
       </div>
 
@@ -207,7 +207,7 @@ export default function ItemPicker({
 
       <div>
         <p className="mb-2 text-sm text-navy-400">
-          Selected Items: {selectedItems.length}/{MAX_SELECTED_ITEMS}
+          Objets sélectionnés : {selectedItems.length}/{MAX_SELECTED_ITEMS}
         </p>
         <div className="flex flex-wrap gap-2">
           {selectedItems.map((item) => {
@@ -228,7 +228,7 @@ export default function ItemPicker({
                   type="button"
                   onClick={() => removeItem(id)}
                   className="text-navy-400 hover:text-navy-100"
-                  aria-label={`Remove ${item.name}`}
+                  aria-label={`Retirer ${item.name}`}
                 >
                   ×
                 </button>

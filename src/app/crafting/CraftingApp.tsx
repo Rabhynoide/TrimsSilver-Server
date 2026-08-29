@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AODP_REGIONS } from "@/lib/aodp";
+import { AODP_REGIONS, REGION_LABELS_FR } from "@/lib/aodp";
 import { CITIES } from "../market-prices/types";
 import type { CatalogItem, PriceRow } from "../market-prices/types";
 import { fetchMarketPrices } from "@/lib/marketPricesClient";
@@ -19,9 +19,9 @@ import ItemRecipePicker from "./ItemRecipePicker";
 import ResultPanel from "./ResultPanel";
 
 const PRICE_MODE_LABELS: Record<PriceMode, string> = {
-  current: "AODP Current",
-  average: "AODP Average",
-  manual: "Manual",
+  current: "AODP Actuel",
+  average: "AODP Moyen",
+  manual: "Manuel",
 };
 
 export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
@@ -102,7 +102,7 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
       });
       setPrices(results);
     } catch (err) {
-      setPricesError(err instanceof Error ? err.message : "Network error");
+      setPricesError(err instanceof Error ? err.message : "Erreur réseau");
       setPrices([]);
     } finally {
       setPricesLoading(false);
@@ -185,11 +185,11 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-8 w-full">
-      <h1 className="text-2xl font-semibold text-navy-100">Crafting Calculator</h1>
+      <h1 className="text-2xl font-semibold text-navy-100">Calculateur de fabrication</h1>
 
       {pricesError && (
         <p className="rounded border border-red-800 bg-red-950/40 px-3 py-2 text-sm text-red-300">
-          Failed to load prices: {pricesError}
+          Échec du chargement des prix : {pricesError}
         </p>
       )}
 
@@ -207,10 +207,10 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
       />
 
       <section className="rounded-lg border border-navy-700 bg-navy-850 p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy-400">Settings</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy-400">Paramètres</h2>
         <div className="flex flex-wrap items-end gap-4">
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Region
+            Région
             <select
               value={config.region}
               onChange={(e) => setConfig((c) => ({ ...c, region: e.target.value as CraftingConfig["region"] }))}
@@ -218,13 +218,13 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
             >
               {AODP_REGIONS.map((r) => (
                 <option key={r} value={r}>
-                  {r}
+                  {REGION_LABELS_FR[r]}
                 </option>
               ))}
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Buy From
+            Acheter à
             <select
               value={config.buyFrom}
               onChange={(e) => setConfig((c) => ({ ...c, buyFrom: e.target.value }))}
@@ -238,7 +238,7 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Sell To
+            Vendre à
             <select
               value={config.sellTo}
               onChange={(e) => setConfig((c) => ({ ...c, sellTo: e.target.value }))}
@@ -252,7 +252,7 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Price Mode
+            Mode de prix
             <select
               value={config.priceMode}
               onChange={(e) => setConfig((c) => ({ ...c, priceMode: e.target.value as PriceMode }))}
@@ -267,7 +267,7 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
           </label>
           {config.priceMode === "average" && (
             <label className="flex flex-col gap-1 text-sm text-navy-300">
-              Average Days
+              Jours moyens
               <input
                 type="number"
                 min={1}
@@ -279,7 +279,7 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
             </label>
           )}
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Batch Size
+            Taille du lot
             <input
               type="number"
               min={1}
@@ -305,10 +305,10 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
               checked={config.useFocus}
               onChange={(e) => setConfig((c) => ({ ...c, useFocus: e.target.checked }))}
             />
-            Show Focus cost
+            Afficher le coût en Focus
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Return Rate %
+            Taux de retour %
             <input
               type="number"
               min={0}
@@ -329,10 +329,10 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
                 setConfig((c) => ({ ...c, returnRateIncludesStationBonus: e.target.checked }))
               }
             />
-            Return Rate already includes a station bonus
+            Le taux de retour inclut déjà un bonus de station
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Station Fee %
+            Frais de station %
             <input
               type="number"
               min={0}
@@ -347,24 +347,25 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
           </label>
         </div>
         <p className="mt-2 text-xs text-navy-400">
-          Return Rate and Station Fee are read off your own in-game crafting window — see the Crafting
-          Calculator plan for why these aren&apos;t auto-calculated. Sales tax{" "}
-          {(salesTaxRateFor(config.premium) * 100).toFixed(2)}% / Setup fee{" "}
-          {(setupFeeRateFor(config.premium) * 100).toFixed(2)}% (from Premium status).
+          Le taux de retour et les frais de station se lisent directement dans votre fenêtre de fabrication
+          en jeu — voir le plan du calculateur de fabrication pour comprendre pourquoi ils ne sont pas
+          calculés automatiquement. Taxe de vente {(salesTaxRateFor(config.premium) * 100).toFixed(2)}% /
+          Frais de placement {(setupFeeRateFor(config.premium) * 100).toFixed(2)}% (selon le statut
+          Premium).
         </p>
 
         <div className="mt-4 flex flex-wrap items-end gap-3">
           {isSignedIn ? (
             <>
               <label className="flex flex-col gap-1 text-sm text-navy-300">
-                Character
+                Personnage
                 <select
                   value={config.characterName ?? ""}
                   onChange={(e) => applyCharacterSpecs(e.target.value)}
                   className="w-48 rounded border border-navy-600 bg-navy-900 px-2 py-1 text-navy-100"
                 >
                   <option value="" disabled>
-                    Select a character
+                    Sélectionner un personnage
                   </option>
                   {characters.map((c) => (
                     <option key={c.characterName} value={c.characterName}>
@@ -378,19 +379,19 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
                 onClick={refreshSpecs}
                 className="rounded border border-navy-600 px-3 py-1.5 text-sm text-navy-200 hover:bg-navy-700"
               >
-                Refresh Specs
+                Actualiser les spécialisations
               </button>
               {selectedCraftItem?.specAchievementId && (
                 <span className="text-xs text-navy-400">
-                  Your spec ({selectedCraftItem.specAchievementId}):{" "}
+                  Votre spécialisation ({selectedCraftItem.specAchievementId}) :{" "}
                   {config.specs[selectedCraftItem.specAchievementId] ?? 0}
                 </span>
               )}
             </>
           ) : (
             <p className="text-xs text-navy-400">
-              Sign in with Discord to auto-fill your specialization level from TrimsSilver-Client synced
-              characters (display only).
+              Connectez-vous avec Discord pour préremplir votre niveau de spécialisation à partir des
+              personnages synchronisés par TrimsSilver-Client (affichage uniquement).
             </p>
           )}
         </div>
@@ -400,10 +401,10 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
             type="button"
             onClick={saveSettings}
             disabled={!isSignedIn || saving}
-            title={!isSignedIn ? "Sign in with Discord to save settings" : undefined}
+            title={!isSignedIn ? "Connectez-vous avec Discord pour enregistrer les paramètres" : undefined}
             className="rounded border border-navy-600 px-4 py-2 text-sm text-navy-200 hover:bg-navy-700 disabled:opacity-50"
           >
-            {saving ? "Saving…" : "Save Settings"}
+            {saving ? "Enregistrement…" : "Enregistrer les paramètres"}
           </button>
           {!isSignedIn && (
             <button
@@ -420,7 +421,7 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
             disabled={pricesLoading || !selectedRecipe}
             className="rounded bg-gold-500 px-3 py-1.5 text-sm font-medium text-navy-950 hover:bg-gold-400 disabled:opacity-50"
           >
-            {pricesLoading ? "Loading…" : "Refresh Prices"}
+            {pricesLoading ? "Chargement…" : "Rafraîchir les prix"}
           </button>
         </div>
       </section>
@@ -430,10 +431,11 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
           itemName={selectedItemName}
           result={result}
           config={config}
+          catalog={catalog}
           onManualPriceChange={onManualPriceChange}
         />
       ) : (
-        <p className="text-sm text-navy-400">Pick an item above to see its crafting profit.</p>
+        <p className="text-sm text-navy-400">Choisissez un objet ci-dessus pour voir son profit de fabrication.</p>
       )}
     </main>
   );

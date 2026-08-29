@@ -23,9 +23,9 @@ function formatCompact(n: number): string {
 
 function formatDate(ts: string): string {
   const d = new Date(ts);
-  // Fixed "en-US" + spelled-out month rather than the viewer's locale — numeric
-  // DD/MM vs MM/DD is genuinely ambiguous, "Aug 2, 2026" never is.
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  // Fixed "fr-FR" + spelled-out month rather than the viewer's locale — numeric
+  // DD/MM vs MM/DD is genuinely ambiguous, "2 août 2026" never is.
+  return d.toLocaleDateString("fr-FR", { year: "numeric", month: "short", day: "numeric" });
 }
 
 export default function PriceHistoryChart({
@@ -68,13 +68,13 @@ export default function PriceHistoryChart({
       const data = await readJsonResponse<{ history?: HistoryPoint[]; error?: string; detail?: string }>(res);
       if (requestIdRef.current !== requestId) return;
       if (!res.ok) {
-        setError(data.detail ?? data.error ?? `Request failed (${res.status})`);
+        setError(data.detail ?? data.error ?? `Échec de la requête (${res.status})`);
         return;
       }
       setPoints(data.history ?? []);
     } catch (err) {
       if (requestIdRef.current === requestId) {
-        setError(err instanceof Error ? err.message : "Network error");
+        setError(err instanceof Error ? err.message : "Erreur réseau");
       }
     }
   }
@@ -113,28 +113,30 @@ export default function PriceHistoryChart({
     return { x, y, yMin, yMax, linePath, areaPath, avgPrice, plotWidth, plotHeight };
   }, [points]);
 
-  const qualityLabel = hasQuality ? QUALITY_LABELS[quality] : "Normal";
+  const qualityLabel = hasQuality ? QUALITY_LABELS[quality] : "Normale";
 
   return (
     <div className="mt-2 rounded-lg border border-navy-600 bg-navy-900 p-3">
       <div className="mb-2 flex items-center justify-between">
         <p className="text-sm font-semibold text-navy-100">
-          {city} Market — {qualityLabel} Quality
+          Marché de {city} — Qualité {qualityLabel}
         </p>
         <button
           type="button"
           onClick={onClose}
           className="text-navy-400 hover:text-navy-100"
-          aria-label="Close chart"
+          aria-label="Fermer le graphique"
         >
           ×
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-300">Failed to load history: {error}</p>}
-      {!error && points === null && <p className="text-sm text-navy-300">Loading history…</p>}
+      {error && <p className="text-sm text-red-300">Échec du chargement de l&apos;historique : {error}</p>}
+      {!error && points === null && <p className="text-sm text-navy-300">Chargement de l&apos;historique…</p>}
       {!error && points !== null && points.length === 0 && (
-        <p className="text-sm text-navy-400">No price history for this selection in the last {days} days.</p>
+        <p className="text-sm text-navy-400">
+          Aucun historique de prix pour cette sélection sur les {days} derniers jours.
+        </p>
       )}
 
       {!error && geometry && points && points.length > 0 && (
@@ -143,7 +145,7 @@ export default function PriceHistoryChart({
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             className="w-full"
             role="img"
-            aria-label={`Price history for ${item.name} in ${city}`}
+            aria-label={`Historique des prix pour ${item.name} à ${city}`}
             onMouseLeave={() => setHoverIndex(null)}
             onMouseMove={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
@@ -248,11 +250,11 @@ export default function PriceHistoryChart({
               }}
             >
               <div className="font-semibold text-navy-100">
-                {points[hoverIndex].avgPrice.toLocaleString()} silver
+                {points[hoverIndex].avgPrice.toLocaleString()} argent
               </div>
               <div className="text-navy-400">{formatDate(points[hoverIndex].timestamp)}</div>
               <div className="text-navy-400">
-                Amount: {points[hoverIndex].itemCount.toLocaleString()}
+                Quantité : {points[hoverIndex].itemCount.toLocaleString()}
               </div>
             </div>
           )}

@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error("Market prices proxy failed", err);
     return NextResponse.json(
-      { error: "Failed to fetch prices from AODP", detail: err instanceof Error ? err.message : String(err) },
+      { error: "Échec de la récupération des prix depuis AODP", detail: err instanceof Error ? err.message : String(err) },
       { status: 502 },
     );
   }

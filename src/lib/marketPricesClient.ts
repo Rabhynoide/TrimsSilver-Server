@@ -82,11 +82,11 @@ async function fetchBatch(batch: string[], params: FetchMarketPricesParams): Pro
       // A 429's body isn't guaranteed to be JSON (it may come from a proxy in
       // front of the app, not our own route handler), so don't hand it to
       // readJsonResponse — throw a clear message directly instead.
-      throw new Error("Rate limited by the price source after several retries — try again in a moment.");
+      throw new Error("Limite de requêtes atteinte auprès de la source de prix après plusieurs tentatives — réessayez dans un instant.");
     }
     const data = await readJsonResponse<{ prices?: PriceRow[]; error?: string; detail?: string }>(res);
     if (!res.ok) {
-      throw new Error(data.detail ?? data.error ?? `Request failed (${res.status})`);
+      throw new Error(data.detail ?? data.error ?? `Échec de la requête (${res.status})`);
     }
     return data.prices ?? [];
   }

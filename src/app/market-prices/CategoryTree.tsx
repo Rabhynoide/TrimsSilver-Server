@@ -65,7 +65,7 @@ function SelectAllRow({
           onChange(next);
         }}
       >
-        Select All
+        Tout sélectionner
       </button>
       <button
         type="button"
@@ -76,7 +76,7 @@ function SelectAllRow({
           onChange(next);
         }}
       >
-        Remove All
+        Tout retirer
       </button>
     </div>
   );
@@ -112,7 +112,9 @@ export default function CategoryTree({
   }, []);
 
   const buttonLabel =
-    selected.size === 0 ? "Shop Categories (All)" : `Shop Categories (${selected.size}/${catalog.length})`;
+    selected.size === 0
+      ? "Catégories de la boutique (Toutes)"
+      : `Catégories de la boutique (${selected.size}/${catalog.length})`;
 
   return (
     <div className="relative" ref={containerRef}>
@@ -136,7 +138,7 @@ export default function CategoryTree({
               className="border-b border-navy-700 px-2 py-1.5 text-left text-xs text-navy-300 hover:text-navy-100"
               onClick={() => onChange(new Set())}
             >
-              Clear Selection
+              Effacer la sélection
             </button>
             <div className="max-h-80 overflow-y-auto">
               {[...tree.entries()].map(([label, node]) => (

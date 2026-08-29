@@ -49,7 +49,8 @@ function FoodBreakdown({
   if (!cheapest) {
     return (
       <p className="text-xs text-navy-400">
-        No {food.foodCategory ?? "food"} price available to compute the cheapest feed.
+        Aucun prix disponible pour {food.foodCategory ?? "la nourriture"} afin de calculer
+        l&apos;aliment le moins cher.
       </p>
     );
   }
@@ -61,7 +62,7 @@ function FoodBreakdown({
   const cost = nutrition * cheapest.costPerNutrition;
   return (
     <p className="text-xs text-navy-300">
-      Cheapest food: {cheapest.food.name} × {units} ({money(cost)} silver)
+      Aliment le moins cher : {cheapest.food.name} × {units} ({money(cost)} argent)
     </p>
   );
 }
@@ -104,15 +105,15 @@ function RecipeRow({
             <span className="truncate text-sm text-navy-100">{recipe.name}</span>
             {result.inputPriceSource === "npc" && (
               <span
-                title="No market price for the seed/baby — using the fixed NPC farming-merchant price instead"
+                title="Aucun prix de marché pour la graine/le petit — utilisation à la place du prix fixe du marchand PNJ"
                 className="shrink-0 rounded bg-navy-600 px-1 text-[10px] text-navy-100"
               >
-                NPC
+                PNJ
               </span>
             )}
             {hasMissingPrices && (
               <span
-                title={`Missing price data: ${result.missingPrices.join(", ")}`}
+                title={`Données de prix manquantes : ${result.missingPrices.join(", ")}`}
                 className="shrink-0 rounded bg-amber-800 px-1 text-[10px] text-amber-100"
               >
                 !
@@ -120,7 +121,7 @@ function RecipeRow({
             )}
             {result.maxPriceAgeHours != null && result.maxPriceAgeHours >= STALE_PRICE_HOURS && (
               <span
-                title={`Oldest price used is ${result.maxPriceAgeHours.toFixed(1)}h old — consider refreshing`}
+                title={`Le prix le plus ancien utilisé date de ${result.maxPriceAgeHours.toFixed(1)}h — pensez à rafraîchir`}
                 className="shrink-0 rounded bg-red-900 px-1 text-[10px] text-red-100"
               >
                 ⟳ {Math.round(result.maxPriceAgeHours)}h
@@ -142,7 +143,7 @@ function RecipeRow({
           className={`w-32 px-2 py-1.5 text-right text-sm font-semibold ${
             result.profitPerDay >= 0 ? "text-green-400" : "text-red-400"
           }`}
-          title={`${config.slots} slots × ${money(result.profitPerDay)}/day`}
+          title={`${config.slots} emplacements × ${money(result.profitPerDay)}/jour`}
         >
           {money(result.profitPerDay * config.slots)}
         </td>
@@ -156,20 +157,22 @@ function RecipeRow({
           <td colSpan={8} className="px-4 py-3">
             <div className="flex flex-col gap-1">
               <p className="text-xs text-navy-400">
-                Focus per cycle: {result.focusCostPerCycle} · Cycles/day: {result.cyclesPerDay.toFixed(2)}
+                Concentration par cycle : {result.focusCostPerCycle} · Cycles/jour :{" "}
+                {result.cyclesPerDay.toFixed(2)}
               </p>
               {result.inputPrice != null && (
                 <p className="text-xs text-navy-400">
-                  Input price: {money(result.inputPrice)} silver (
-                  {result.inputPriceSource === "npc" ? "NPC merchant" : "Market"})
+                  Prix d&apos;achat : {money(result.inputPrice)} argent (
+                  {result.inputPriceSource === "npc" ? "marchand PNJ" : "Marché"})
                 </p>
               )}
               {result.inputReturnFraction != null && result.netInputUnitsConsumed != null && (
                 <p className="text-xs text-navy-400">
-                  {isPlantRecipe(recipe) ? "Seed" : "Baby"} return chance:{" "}
-                  {(result.inputReturnFraction * 100).toFixed(1)}% → buying{" "}
-                  {result.netInputUnitsConsumed.toFixed(2)} {isPlantRecipe(recipe) ? "seeds" : "babies"}/cycle
-                  on average (never counted as revenue — only discounts the cost above)
+                  Chance de récupération {isPlantRecipe(recipe) ? "de graine" : "de petit"} :{" "}
+                  {(result.inputReturnFraction * 100).toFixed(1)}% → achat de{" "}
+                  {result.netInputUnitsConsumed.toFixed(2)}{" "}
+                  {isPlantRecipe(recipe) ? "graines" : "petits"}/cycle en moyenne (jamais comptabilisé
+                  comme revenu — réduit uniquement le coût ci-dessus)
                 </p>
               )}
               {isAnimalRecipe(recipe) && recipe.growthFood && (
@@ -208,7 +211,8 @@ function RecipeRow({
               )}
               {hasMissingPrices && config.priceMode !== "manual" && (
                 <p className="text-xs text-amber-400">
-                  Missing price: {result.missingPrices.filter((n) => !n.startsWith("food:")).join(", ")}
+                  Prix manquant :{" "}
+                  {result.missingPrices.filter((n) => !n.startsWith("food:")).join(", ")}
                 </p>
               )}
             </div>
@@ -341,20 +345,20 @@ export default function ResultsTable({
           disabled={loading}
           className="rounded bg-gold-500 px-3 py-1.5 text-sm font-medium text-navy-950 hover:bg-gold-400 disabled:opacity-50"
         >
-          Refresh Prices
+          Rafraîchir les prix
         </button>
         {staleItems.length > 0 && (
           <span
             title={staleItems
-              .map(({ recipe, result }) => `${recipe.name} — ${Math.round(result.maxPriceAgeHours)}h old`)
+              .map(({ recipe, result }) => `${recipe.name} — ${Math.round(result.maxPriceAgeHours)}h`)
               .join("\n")}
             className="cursor-help rounded bg-red-900 px-2 py-1 text-xs font-semibold text-red-100"
           >
-            ⟳ {staleItems.length} item{staleItems.length > 1 ? "s" : ""} need a refresh (&gt;
-            {STALE_PRICE_HOURS}h old)
+            ⟳ {staleItems.length} article{staleItems.length > 1 ? "s" : ""} à rafraîchir (&gt;
+            {STALE_PRICE_HOURS}h)
           </span>
         )}
-        {loading && <p className="text-sm text-navy-300">Loading prices…</p>}
+        {loading && <p className="text-sm text-navy-300">Chargement des prix…</p>}
       </div>
 
       {groups.map((group) => {
@@ -408,14 +412,14 @@ function ResultsSection({
   onManualPriceChange: (uniqueName: string, value: number) => void;
 }) {
   const headers: { key: SortKey | null; label: string; align: string; width: string }[] = [
-    { key: "name", label: "Item", align: "text-left", width: "w-64" },
+    { key: "name", label: "Article", align: "text-left", width: "w-64" },
     { key: "tier", label: "Tier", align: "text-center", width: "w-14" },
-    { key: null, label: "Cost/Cycle", align: "text-right", width: "w-24" },
-    { key: null, label: "Revenue/Cycle", align: "text-right", width: "w-28" },
-    { key: "profitPerDay", label: "Profit/Day", align: "text-right", width: "w-24" },
-    { key: "totalProfitPerDay", label: "Total Profit/Day", align: "text-right", width: "w-32" },
-    { key: "profitPerFocus", label: "Profit/Focus", align: "text-right", width: "w-24" },
-    { key: "famePerDay", label: "Fame/Day", align: "text-right", width: "w-20" },
+    { key: null, label: "Coût/cycle", align: "text-right", width: "w-24" },
+    { key: null, label: "Revenu/cycle", align: "text-right", width: "w-28" },
+    { key: "profitPerDay", label: "Profit/jour", align: "text-right", width: "w-24" },
+    { key: "totalProfitPerDay", label: "Profit total/jour", align: "text-right", width: "w-32" },
+    { key: "profitPerFocus", label: "Profit/Concentration", align: "text-right", width: "w-24" },
+    { key: "famePerDay", label: "Renommée/jour", align: "text-right", width: "w-20" },
   ];
 
   return (
