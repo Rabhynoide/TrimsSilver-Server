@@ -1,10 +1,17 @@
 import type { PriceRow } from "@/app/market-prices/types";
 import { readJsonResponse } from "./http";
 
-// /api/market/prices' own hard cap on how many items one request can price
-// (see MAX_ITEMS in that route) — kept in sync manually since it's enforced
-// server-side, not exported from there.
-const MAX_ITEMS_PER_REQUEST = 100;
+// /api/market/prices' own sanity ceiling on one request (see MAX_ITEMS in
+// that route) — kept in sync manually since it's enforced server-side, not
+// exported from there. The real AODP-facing constraints (its 4096-char URL
+// limit and 180/min-300/5min rate limits) are handled server-side in
+// src/lib/aodp.ts, which every request here eventually goes through — this
+// chunking exists mainly to keep any single request to our own server
+// reasonably sized, plus the retry below is a defense-in-depth safety net
+// for whatever else could return a transient error on that hop (a proxy in
+// front of the app, a network blip) rather than the primary AODP-rate-limit
+// fix.
+const MAX_ITEMS_PER_REQUEST = 500;
 const CHUNK_DELAY_MS = 300;
 const RATE_LIMIT_RETRIES = 3;
 const RATE_LIMIT_BACKOFF_MS = 1500;
@@ -59,13 +66,13 @@ async function fetchBatch(batch: string[], params: FetchMarketPricesParams): Pro
 
 // Shared client-side entry point for every feature that reads live prices
 // (Market Prices, Farming, Crafting, Journals, Flipper's Public Flips) —
-// transparently splits `items` into ≤100-item chunks (that route's own
-// MAX_ITEMS cap) with a short gap between requests, and retries a 429 a
-// few times with backoff before giving up. A single feature's item set can
-// grow past 100 (Journals prices its whole ~580-item catalog at once) and,
-// even below that, several features can refresh around the same time — both
-// can trip rate limiting; this is where that protection lives so it applies
-// uniformly instead of being reimplemented (or forgotten) per feature.
+// splits `items` into ≤500-item chunks (that route's own sanity ceiling)
+// with a short gap between requests, and retries a 429 from our own server a
+// few times before giving up. The AODP-specific rate limiting this was
+// originally written to fix (see PROJECT_STATUS.md) now lives in
+// src/lib/aodp.ts instead, so this is a secondary safety net rather than the
+// primary defense — but it's still the one place every feature goes through,
+// so any future protection needed at this layer only has to be added once.
 export async function fetchMarketPrices(params: FetchMarketPricesParams): Promise<PriceRow[]> {
   if (params.items.length === 0) return [];
   const batches = chunk(params.items, MAX_ITEMS_PER_REQUEST);

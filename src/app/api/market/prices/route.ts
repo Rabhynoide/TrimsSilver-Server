@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AverageEntry, fetchAveragePrices, fetchCurrentPrices, isAodpRegion, priceKey } from "@/lib/aodp";
 
-const MAX_ITEMS = 100;
+// A sanity ceiling on one request, not AODP's real constraint — aodp.ts's
+// fetchCurrentPrices/fetchAveragePrices internally batch by actual URL
+// length against AODP's documented 4096-char limit (and rate-limit/retry
+// against its 180/min-300/5min ceilings), so a large item list here is
+// still safe; this just guards against one client sending something absurd.
+const MAX_ITEMS = 500;
 
 // Live proxy to AODP's public stats API for the Market Prices page — see
 // PROJECT_STATUS.md's "Market Prices" section. Not persisted server-side.
