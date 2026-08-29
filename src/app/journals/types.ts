@@ -19,10 +19,14 @@ export type Scenario = "buyFullSellMats" | "buyEmptySellMats" | "buyEmptySellFul
 // which direction you're trading — mirrors AFM's own Buy/Sell Price Type
 // dropdowns. Taking the instant opposite-side order costs no setup fee;
 // placing your own resting order at your own side does. See calc.ts's
-// setup-fee rule for the exact mapping. "Average"/"Manual" are treated as
-// already-realized prices — sales tax still applies (you still owe Albion's
-// cut on any sale), but no setup fee (no real order is being modeled).
-export type PriceType = "sellOrder" | "buyOrder" | "average" | "manual";
+// setup-fee rule for the exact mapping. "Average"/"Manual"/"EMV" are treated
+// as already-realized prices — sales tax still applies (you still owe
+// Albion's cut on any sale), but no setup fee (no real order is being
+// modeled). "EMV" (signed-in only) reads the desktop client's own synced
+// ItemEstimatedMarketValue data via /api/journals/emv — journals and their
+// reward materials/fill resources are all quality 1, so unlike Crafting's
+// EMV gap (quality 1-5 equipment) this is a clean fit — see server issue #16.
+export type PriceType = "sellOrder" | "buyOrder" | "average" | "emv" | "manual";
 
 export type JournalsConfig = {
   region: AodpRegion;

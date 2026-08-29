@@ -9,6 +9,7 @@ import { journalMarketId, JOURNAL_FAMILY_ORDER } from "@/data/journal-constants"
 import { evaluateJournal, type JournalRow } from "./calc";
 import {
   defaultJournalsConfig,
+  REGION_SERVER_ID,
   salesTaxRateFor,
   setupFeeRateFor,
   yieldPctFor,
@@ -30,10 +31,12 @@ const PRICE_TYPE_LABELS: Record<PriceType, string> = {
   sellOrder: "Sell Order",
   buyOrder: "Buy Order",
   average: "Average Price",
+  emv: "My EMV",
   manual: "Manual",
 };
 
 const MAX_ITEMS_PER_REQUEST = 100;
+const MAX_EMV_ITEMS_PER_REQUEST = 200;
 
 function collectPricedItems(rows: JournalRow[]): string[] {
   const names = new Set<string>();
@@ -62,6 +65,7 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
   const [pricesError, setPricesError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [selectedUniqueName, setSelectedUniqueName] = useState<string | null>(null);
+  const [emv, setEmv] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     fetch("/api/journals/catalog")
@@ -127,6 +131,31 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows]);
 
+  async function fetchEmv() {
+    if (!isSignedIn || rows.length === 0) return;
+    const items = collectPricedItems(rows);
+    const batches = chunk(items, MAX_EMV_ITEMS_PER_REQUEST);
+    const entries: [string, number][] = [];
+    for (const batch of batches) {
+      const params = new URLSearchParams({
+        items: batch.join(","),
+        serverId: String(REGION_SERVER_ID[config.region]),
+      });
+      const res = await fetch(`/api/journals/emv?${params.toString()}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      for (const row of data.emv ?? []) entries.push([row.itemUniqueName, row.emv]);
+    }
+    setEmv(new Map(entries));
+  }
+
+  useEffect(() => {
+    if (config.buyPriceType !== "emv" && config.sellPriceType !== "emv") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- price-type-driven refetch; fetchEmv guards itself on isSignedIn/rows
+    fetchEmv();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.buyPriceType, config.sellPriceType, config.region, rows]);
+
   async function saveSettings() {
     setSaving(true);
     try {
@@ -146,8 +175,10 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
     priceType: PriceType,
     manualPrices: Record<string, number>,
     priceRows: PriceRow[],
+    emvMap: Map<string, number>,
   ): number | null {
     if (priceType === "manual") return manualPrices[marketId] ?? null;
+    if (priceType === "emv") return emvMap.get(marketId) ?? null;
     const row = priceRows.find((p) => p.itemId === marketId && p.city === city && p.quality === 1);
     if (!row) return null;
     if (priceType === "average") return row.avgPrice;
@@ -157,13 +188,13 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
 
   const buyPriceOf = useMemo(
     () => (marketId: string) =>
-      resolvePrice(marketId, config.buyFrom, config.buyPriceType, config.manualPrices, prices),
-    [config.buyFrom, config.buyPriceType, config.manualPrices, prices],
+      resolvePrice(marketId, config.buyFrom, config.buyPriceType, config.manualPrices, prices, emv),
+    [config.buyFrom, config.buyPriceType, config.manualPrices, prices, emv],
   );
   const sellPriceOf = useMemo(
     () => (marketId: string) =>
-      resolvePrice(marketId, config.sellTo, config.sellPriceType, config.manualPrices, prices),
-    [config.sellTo, config.sellPriceType, config.manualPrices, prices],
+      resolvePrice(marketId, config.sellTo, config.sellPriceType, config.manualPrices, prices, emv),
+    [config.sellTo, config.sellPriceType, config.manualPrices, prices, emv],
   );
 
   const evaluate = useMemo(() => {
@@ -205,7 +236,9 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
     setConfig((c) => ({ ...c, manualPrices: { ...c.manualPrices, [marketId]: value } }));
   }
 
-  const priceTypes: PriceType[] = ["sellOrder", "buyOrder", "average", "manual"];
+  const priceTypes: PriceType[] = isSignedIn
+    ? ["sellOrder", "buyOrder", "average", "emv", "manual"]
+    : ["sellOrder", "buyOrder", "average", "manual"];
   const scenarios: Scenario[] = ["buyFullSellMats", "buyEmptySellMats", "buyEmptySellFull"];
 
   return (
@@ -369,7 +402,8 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
           Sales tax {(salesTaxRateFor(config.premium) * 100).toFixed(2)}% / Setup fee{" "}
           {(setupFeeRateFor(config.premium) * 100).toFixed(2)}% (from Premium status). Setup fee is charged
           only on the side where you place your own resting order — see &quot;Sell Order&quot; vs &quot;Buy
-          Order&quot; above.
+          Order&quot; above. My EMV (your own synced Estimated Market Value) is available once you&apos;re
+          signed in with Discord.
         </p>
 
         <div className="mt-4 flex items-center gap-3">
