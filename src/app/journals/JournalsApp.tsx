@@ -40,6 +40,9 @@ const MAX_EMV_ITEMS_PER_REQUEST = 200;
 function collectPricedItems(rows: JournalRow[]): string[] {
   const names = new Set<string>();
   for (const row of rows) {
+    // AODP currently has no scan coverage for empty journals (calc.ts falls
+    // back to the NPC vendor price when this comes back null), but still
+    // fetch it in case their coverage ever improves — see calc.ts.
     names.add(journalMarketId(row.uniqueName, "empty"));
     names.add(journalMarketId(row.uniqueName, "full"));
     for (const entry of row.loot) {

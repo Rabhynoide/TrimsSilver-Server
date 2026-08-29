@@ -106,8 +106,16 @@ export function evaluateJournal(row: JournalRow, ctx: EvalContext): EvalResult {
     if (price == null) missing.push(fullId);
     buyLines.push(buyLine("Full journal", fullId, 1, price, ctx));
   } else {
-    const price = ctx.buyPriceOf(emptyId);
-    if (price == null) missing.push(emptyId);
+    // Empty journals ARE real player-market goods (confirmed in-game — real
+    // sell orders at varying prices), but AODP currently has no scan coverage
+    // for the bare uniqueName at all (confirmed live: every T*_JOURNAL_* id
+    // returns zero data in every region/city/quality, and no history either).
+    // row.emptySilver (from craftingrequirements.@silver — the NPC vendor's
+    // fixed instant-buy price) is a reliable ceiling no rational buyer pays
+    // above, and matches observed player listings clustering right at/under
+    // it. Prefer live data when AODP has it (in case their coverage improves)
+    // and fall back to the vendor price otherwise — never "missing".
+    const price = ctx.buyPriceOf(emptyId) ?? row.emptySilver;
     buyLines.push(buyLine("Empty journal", emptyId, 1, price, ctx));
 
     if (row.fillOptions && row.fillOptions.length > 0) {
@@ -137,8 +145,10 @@ export function evaluateJournal(row: JournalRow, ctx: EvalContext): EvalResult {
     if (price == null) missing.push(fullId);
     sellLines.push(sellLine(fullId, 1, price, ctx));
   } else {
-    const emptyBackPrice = ctx.sellPriceOf(emptyId);
-    if (emptyBackPrice == null) missing.push(emptyId);
+    // Turning in a filled journal returns the (now empty) journal itself
+    // along with the loot — same live-price-first, vendor-price-fallback
+    // reasoning as the buy side.
+    const emptyBackPrice = ctx.sellPriceOf(emptyId) ?? row.emptySilver;
     sellLines.push(sellLine(emptyId, 1, emptyBackPrice, ctx));
 
     for (const entry of row.loot) {
