@@ -73,6 +73,9 @@ export default function RunDetailPanel({
 }) {
   const familyMeta = JOURNAL_FAMILIES[row.family];
   const hasMissing = result.missingPrices.length > 0;
+  // "Buy Full, Sell Mats" never sells the full journal (it's the buy-side
+  // input) — green/red would misleadingly read as a live sell signal.
+  const neutralProfitColor = config.scenario === "buyFullSellMats";
   const chosenFill = config.fillChoice[row.uniqueName] ?? row.fillOptions?.[0]?.uniqueName ?? null;
 
   return (
@@ -145,13 +148,21 @@ export default function RunDetailPanel({
       <div className="mt-4 flex items-center gap-6 border-t border-navy-700 pt-3">
         <span className="text-sm text-navy-300">
           Profit / registre :{" "}
-          <span className={result.profitPerJournal >= 0 ? "text-green-400" : "text-red-400"}>
+          <span
+            className={
+              neutralProfitColor ? "text-navy-300" : result.profitPerJournal >= 0 ? "text-green-400" : "text-red-400"
+            }
+          >
             {money(result.profitPerJournal)}
           </span>
         </span>
         <span className="text-sm text-navy-300">
           Profit × {config.amount} :{" "}
-          <span className={`font-semibold ${result.profitTotal >= 0 ? "text-green-400" : "text-red-400"}`}>
+          <span
+            className={`font-semibold ${
+              neutralProfitColor ? "text-navy-300" : result.profitTotal >= 0 ? "text-green-400" : "text-red-400"
+            }`}
+          >
             {money(result.profitTotal)}
           </span>
         </span>

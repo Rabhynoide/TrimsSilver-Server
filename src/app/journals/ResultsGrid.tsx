@@ -12,11 +12,17 @@ export default function ResultsGrid({
   evaluate,
   selected,
   onSelect,
+  neutralProfitColor,
 }: {
   rowsByFamily: Map<string, Map<number, JournalRow>>;
   evaluate: (row: JournalRow) => EvalResult;
   selected: JournalRow | null;
   onSelect: (row: JournalRow) => void;
+  // True for the "Buy Full, Sell Mats" scenario, where the full journal is
+  // never actually sold (it's the buy-side input) — coloring profit
+  // green/red there would read as a live sell signal it isn't, so it's shown
+  // in a neutral gray instead.
+  neutralProfitColor: boolean;
 }) {
   return (
     <section className="rounded-lg border border-navy-700 bg-navy-850 p-4">
@@ -65,9 +71,11 @@ export default function ResultsGrid({
                           className={`w-full rounded px-2 py-1 text-right transition-colors ${
                             isSelected
                               ? "bg-gold-500 text-navy-950 font-semibold"
-                              : result.profitTotal >= 0
-                                ? "text-green-400 hover:bg-navy-700"
-                                : "text-red-400 hover:bg-navy-700"
+                              : neutralProfitColor
+                                ? "text-navy-300 hover:bg-navy-700"
+                                : result.profitTotal >= 0
+                                  ? "text-green-400 hover:bg-navy-700"
+                                  : "text-red-400 hover:bg-navy-700"
                           }`}
                           title={
                             result.missingPrices.length > 0
