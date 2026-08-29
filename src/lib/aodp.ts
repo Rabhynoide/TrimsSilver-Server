@@ -24,6 +24,15 @@ const REGION_SUBDOMAIN: Record<AodpRegion, string> = {
   Europe: "europe",
 };
 
+// Display-only French labels — AodpRegion itself stays in English since it's
+// a stored/serialized config value (JournalsConfig["region"] etc.), not just
+// UI text.
+export const REGION_LABELS_FR: Record<AodpRegion, string> = {
+  Americas: "Amériques",
+  Asia: "Asie",
+  Europe: "Europe",
+};
+
 export function isAodpRegion(value: string): value is AodpRegion {
   return (AODP_REGIONS as readonly string[]).includes(value);
 }

@@ -23,9 +23,9 @@ function BuyLineRow({ line }: { line: BuyLine }) {
       <div className="flex flex-1 flex-col">
         <span className="text-sm text-navy-100">{line.label}</span>
         <span className="text-xs text-navy-400">
-          Qty: {line.qtyPerJournal.toFixed(2)} · Unit price:{" "}
+          Qté : {line.qtyPerJournal.toFixed(2)} · Prix unitaire :{" "}
           {line.unitPrice != null ? money(line.unitPrice) : "—"}
-          {line.setupFee > 0 && <> · Setup fee: {money(line.setupFee)}</>}
+          {line.setupFee > 0 && <> · Frais de placement : {money(line.setupFee)}</>}
         </span>
       </div>
       <span className="text-sm font-semibold text-navy-100">{money(line.cost)}</span>
@@ -36,17 +36,17 @@ function BuyLineRow({ line }: { line: BuyLine }) {
 function SellLineRow({ line }: { line: SellLine }) {
   return (
     <div className="flex items-center gap-3 rounded border border-navy-700 bg-navy-900 px-3 py-2">
-      {line.itemName !== "Silver" && (
+      {line.itemName !== "Argent" && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={iconUrl(line.itemName)} alt="" className="h-8 w-8 shrink-0" />
       )}
       <div className="flex flex-1 flex-col">
         <span className="text-sm text-navy-100">{line.itemName}</span>
         <span className="text-xs text-navy-400">
-          Qty: {line.qtyPerJournal.toFixed(3)} · Unit price:{" "}
+          Qté : {line.qtyPerJournal.toFixed(3)} · Prix unitaire :{" "}
           {line.unitPrice != null ? money(line.unitPrice) : "—"}
-          {line.setupFee > 0 && <> · Setup fee: {money(line.setupFee)}</>}
-          {line.salesTax > 0 && <> · Sales tax: {money(line.salesTax)}</>}
+          {line.setupFee > 0 && <> · Frais de placement : {money(line.setupFee)}</>}
+          {line.salesTax > 0 && <> · Taxe de vente : {money(line.salesTax)}</>}
         </span>
       </div>
       <span className={`text-sm font-semibold ${line.result >= 0 ? "text-navy-100" : "text-red-400"}`}>
@@ -78,7 +78,7 @@ export default function RunDetailPanel({
   return (
     <section className="rounded-lg border border-navy-700 bg-navy-850 p-4">
       <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-navy-400">
-        Journal Run Details
+        Détail du registre
       </h2>
       <p className="mb-3 text-lg font-semibold text-navy-100">
         {familyMeta.label} [T{row.tier}]
@@ -86,7 +86,7 @@ export default function RunDetailPanel({
 
       {row.fillOptions && config.scenario !== "buyFullSellMats" && (
         <label className="mb-3 flex max-w-md flex-col gap-1 text-sm text-navy-300">
-          Fill with
+          Remplir avec
           <select
             value={chosenFill ?? ""}
             onChange={(e) => onFillChoiceChange(row.uniqueName, e.target.value)}
@@ -94,7 +94,7 @@ export default function RunDetailPanel({
           >
             {row.fillOptions.map((opt) => (
               <option key={opt.uniqueName} value={opt.uniqueName}>
-                {opt.uniqueName} ({opt.famevalue} fame/unit → {(row.maxFame / opt.famevalue).toFixed(1)} units)
+                {opt.name} ({opt.famevalue} renommée/unité → {(row.maxFame / opt.famevalue).toFixed(1)} unités)
               </option>
             ))}
           </select>
@@ -103,7 +103,7 @@ export default function RunDetailPanel({
 
       {result.usingManualFillCost && config.scenario !== "buyFullSellMats" && (
         <label className="mb-3 flex max-w-xs flex-col gap-1 text-sm text-navy-300">
-          Fill cost per journal (manual)
+          Coût de remplissage par registre (manuel)
           <input
             type="number"
             min={0}
@@ -113,7 +113,7 @@ export default function RunDetailPanel({
           />
           <span className="text-xs text-navy-400">
             {familyMeta.kind === "manual-fill"
-              ? "No market-priceable fill input for this journal type (crafting fame, PvE kill fame, or any-fame-source) — enter your own cost."
+              ? "Aucun élément de remplissage priçable sur le marché pour ce type de registre (renommée d'artisanat, renommée PvE, ou n'importe quelle source de renommée) — entrez votre propre coût."
               : null}
           </span>
         </label>
@@ -122,7 +122,7 @@ export default function RunDetailPanel({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-navy-400">
-            Buy — Total cost {money(result.costPerJournal)}
+            Achat — Coût total {money(result.costPerJournal)}
           </h3>
           <div className="flex flex-col gap-2">
             {result.buyLines.map((line, i) => (
@@ -132,7 +132,7 @@ export default function RunDetailPanel({
         </div>
         <div>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-navy-400">
-            Sell — Net income {money(result.revenuePerJournal)}
+            Vente — Revenu net {money(result.revenuePerJournal)}
           </h3>
           <div className="flex flex-col gap-2">
             {result.sellLines.map((line, i) => (
@@ -144,13 +144,13 @@ export default function RunDetailPanel({
 
       <div className="mt-4 flex items-center gap-6 border-t border-navy-700 pt-3">
         <span className="text-sm text-navy-300">
-          Profit / journal:{" "}
+          Profit / registre :{" "}
           <span className={result.profitPerJournal >= 0 ? "text-green-400" : "text-red-400"}>
             {money(result.profitPerJournal)}
           </span>
         </span>
         <span className="text-sm text-navy-300">
-          Profit × {config.amount}:{" "}
+          Profit × {config.amount} :{" "}
           <span className={`font-semibold ${result.profitTotal >= 0 ? "text-green-400" : "text-red-400"}`}>
             {money(result.profitTotal)}
           </span>
@@ -174,7 +174,7 @@ export default function RunDetailPanel({
         </div>
       ) : (
         hasMissing && (
-          <p className="mt-3 text-xs text-amber-400">Missing price for: {result.missingPrices.join(", ")}</p>
+          <p className="mt-3 text-xs text-amber-400">Prix manquant pour : {result.missingPrices.join(", ")}</p>
         )
       )}
     </section>

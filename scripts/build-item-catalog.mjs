@@ -29,9 +29,11 @@ async function fetchJson(url) {
 function buildNameIndex(formattedItems) {
   const nameByUniqueName = new Map();
   for (const item of formattedItems) {
-    const enName = item.LocalizedNames?.["EN-US"];
-    if (item.UniqueName && enName) {
-      nameByUniqueName.set(item.UniqueName, enName);
+    // FR-FR first (the site is French-only), falling back to EN-US for the
+    // rare item ao-bin-dumps hasn't localized yet.
+    const name = item.LocalizedNames?.["FR-FR"] ?? item.LocalizedNames?.["EN-US"];
+    if (item.UniqueName && name) {
+      nameByUniqueName.set(item.UniqueName, name);
     }
   }
   return nameByUniqueName;

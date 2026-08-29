@@ -20,12 +20,12 @@ export default function ResultsGrid({
 }) {
   return (
     <section className="rounded-lg border border-navy-700 bg-navy-850 p-4">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy-400">Results Table</h2>
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy-400">Tableau des résultats</h2>
       <div className="overflow-x-auto">
         <table className="w-full table-fixed border-collapse text-sm">
           <thead>
             <tr className="divide-x divide-navy-700 border-b border-navy-700 text-left text-xs uppercase tracking-wide text-navy-400">
-              <th className="w-56 px-2 py-1.5">Journal Type</th>
+              <th className="w-56 px-2 py-1.5">Type de registre</th>
               {JOURNAL_TIERS.map((tier) => (
                 <th key={tier} className="w-20 px-2 py-1.5 text-right">
                   T{tier}
@@ -71,7 +71,7 @@ export default function ResultsGrid({
                           }`}
                           title={
                             result.missingPrices.length > 0
-                              ? `Missing price for: ${result.missingPrices.join(", ")}`
+                              ? `Prix manquant pour : ${result.missingPrices.join(", ")}`
                               : undefined
                           }
                         >

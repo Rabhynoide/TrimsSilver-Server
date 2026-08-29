@@ -33,26 +33,30 @@ export type JournalFamily =
 // fame source aren't in the data) — the UI asks for it as a manual number.
 export type JournalKind = "gathering" | "manual-fill";
 
+// Profession words verified directly against localization.json's FR-FR
+// segs for each family's T2 "_EMPTY" tuid (e.g. @ITEMS_T2_JOURNAL_WOOD_EMPTY
+// -> "Registre de l'apprenti bûcheron (vide)"), so these match the real
+// in-game French client rather than being freehand translations.
 export const JOURNAL_FAMILIES: Record<JournalFamily, { label: string; kind: JournalKind }> = {
-  WOOD: { label: "Lumberjack's Journal", kind: "gathering" },
-  STONE: { label: "Stonecutter's Journal", kind: "gathering" },
-  ORE: { label: "Prospector's Journal", kind: "gathering" },
-  FIBER: { label: "Cropper's Journal", kind: "gathering" },
-  HIDE: { label: "Gamekeeper's Journal", kind: "gathering" },
-  FISHING: { label: "Fisherman's Journal", kind: "manual-fill" },
-  HUNTER: { label: "Fletcher's Journal", kind: "manual-fill" },
-  MAGE: { label: "Imbuer's Journal", kind: "manual-fill" },
-  WARRIOR: { label: "Blacksmith's Journal", kind: "manual-fill" },
-  TOOLMAKER: { label: "Tinker's Journal", kind: "manual-fill" },
-  MERCENARY: { label: "Mercenary's Journal", kind: "manual-fill" },
-  TROPHY_WOOD: { label: "Lumberjack's Trophy Journal", kind: "gathering" },
-  TROPHY_STONE: { label: "Stonecutter's Trophy Journal", kind: "gathering" },
-  TROPHY_ORE: { label: "Prospector's Trophy Journal", kind: "gathering" },
-  TROPHY_FIBER: { label: "Cropper's Trophy Journal", kind: "gathering" },
-  TROPHY_HIDE: { label: "Gamekeeper's Trophy Journal", kind: "gathering" },
-  TROPHY_FISHING: { label: "Fisherman's Trophy Journal", kind: "manual-fill" },
-  TROPHY_GENERAL: { label: "Generalist Trophy Journal", kind: "manual-fill" },
-  TROPHY_MERCENARY: { label: "Mercenary's Trophy Journal", kind: "manual-fill" },
+  WOOD: { label: "Registre du Bûcheron", kind: "gathering" },
+  STONE: { label: "Registre du Tailleur de pierre", kind: "gathering" },
+  ORE: { label: "Registre du Chercheur", kind: "gathering" },
+  FIBER: { label: "Registre du Moissonneur", kind: "gathering" },
+  HIDE: { label: "Registre du Garde-forestier", kind: "gathering" },
+  FISHING: { label: "Registre du Pêcheur", kind: "manual-fill" },
+  HUNTER: { label: "Registre de l'Archer", kind: "manual-fill" },
+  MAGE: { label: "Registre de l'Imprégnateur", kind: "manual-fill" },
+  WARRIOR: { label: "Registre du Forgeron", kind: "manual-fill" },
+  TOOLMAKER: { label: "Registre du Bricoleur", kind: "manual-fill" },
+  MERCENARY: { label: "Registre du Mercenaire", kind: "manual-fill" },
+  TROPHY_WOOD: { label: "Registre de Trophée du Bûcheron", kind: "gathering" },
+  TROPHY_STONE: { label: "Registre de Trophée du Tailleur de pierre", kind: "gathering" },
+  TROPHY_ORE: { label: "Registre de Trophée du Chercheur", kind: "gathering" },
+  TROPHY_FIBER: { label: "Registre de Trophée du Moissonneur", kind: "gathering" },
+  TROPHY_HIDE: { label: "Registre de Trophée du Garde-forestier", kind: "gathering" },
+  TROPHY_FISHING: { label: "Registre de Trophée du Pêcheur", kind: "manual-fill" },
+  TROPHY_GENERAL: { label: "Registre de Trophée du Généraliste", kind: "manual-fill" },
+  TROPHY_MERCENARY: { label: "Registre de Trophée du Mercenaire", kind: "manual-fill" },
 };
 
 export const JOURNAL_FAMILY_ORDER: JournalFamily[] = [

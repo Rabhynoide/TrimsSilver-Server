@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AODP_REGIONS } from "@/lib/aodp";
+import { AODP_REGIONS, REGION_LABELS_FR } from "@/lib/aodp";
 import { CITIES } from "../market-prices/types";
 import type { PriceRow } from "../market-prices/types";
 import { fetchMarketPrices } from "@/lib/marketPricesClient";
@@ -22,17 +22,17 @@ import ResultsGrid from "./ResultsGrid";
 import RunDetailPanel from "./RunDetailPanel";
 
 const SCENARIO_LABELS: Record<Scenario, string> = {
-  buyFullSellMats: "Buy Full, Sell Mats",
-  buyEmptySellMats: "Buy Empty, Sell Mats",
-  buyEmptySellFull: "Buy Empty, Sell Full",
+  buyFullSellMats: "Acheter plein, vendre les matériaux",
+  buyEmptySellMats: "Acheter vide, vendre les matériaux",
+  buyEmptySellFull: "Acheter vide, vendre plein",
 };
 
 const PRICE_TYPE_LABELS: Record<PriceType, string> = {
-  sellOrder: "Sell Order",
-  buyOrder: "Buy Order",
-  average: "Average Price",
-  emv: "My EMV",
-  manual: "Manual",
+  sellOrder: "Ordre de vente",
+  buyOrder: "Ordre d'achat",
+  average: "Prix moyen",
+  emv: "Mon EMV",
+  manual: "Manuel",
 };
 
 const MAX_EMV_ITEMS_PER_REQUEST = 200;
@@ -100,7 +100,7 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
       const results = await fetchMarketPrices({ items, locations, qualities: "1", region: config.region, averageDays });
       setPrices(results);
     } catch (err) {
-      setPricesError(err instanceof Error ? err.message : "Network error");
+      setPricesError(err instanceof Error ? err.message : "Erreur réseau");
       setPrices([]);
     } finally {
       setPricesLoading(false);
@@ -227,19 +227,19 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-8 w-full">
-      <h1 className="text-2xl font-semibold text-navy-100">Journals Calculator</h1>
+      <h1 className="text-2xl font-semibold text-navy-100">Calculateur de registres</h1>
 
       {pricesError && (
         <p className="rounded border border-red-800 bg-red-950/40 px-3 py-2 text-sm text-red-300">
-          Failed to load prices: {pricesError}
+          Échec du chargement des prix : {pricesError}
         </p>
       )}
 
       <section className="rounded-lg border border-navy-700 bg-navy-850 p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy-400">Settings</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy-400">Paramètres</h2>
         <div className="flex flex-wrap items-end gap-4">
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Scenario
+            Scénario
             <select
               value={config.scenario}
               onChange={(e) => setConfig((c) => ({ ...c, scenario: e.target.value as Scenario }))}
@@ -253,7 +253,7 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Amount of Journals
+            Nombre de registres
             <input
               type="number"
               min={1}
@@ -263,7 +263,7 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
             />
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            T2–T7 Yield %
+            Rendement % T2–T7
             <input
               type="number"
               min={0}
@@ -275,7 +275,7 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
             />
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            T8 Yield %
+            Rendement % T8
             <input
               type="number"
               min={0}
@@ -287,7 +287,7 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
             />
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Region
+            Région
             <select
               value={config.region}
               onChange={(e) => setConfig((c) => ({ ...c, region: e.target.value as JournalsConfig["region"] }))}
@@ -295,7 +295,7 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
             >
               {AODP_REGIONS.map((r) => (
                 <option key={r} value={r}>
-                  {r}
+                  {REGION_LABELS_FR[r]}
                 </option>
               ))}
             </select>
@@ -304,7 +304,7 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
 
         <div className="mt-4 flex flex-wrap items-end gap-4">
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Buy Location
+            Lieu d&apos;achat
             <select
               value={config.buyFrom}
               onChange={(e) => setConfig((c) => ({ ...c, buyFrom: e.target.value }))}
@@ -318,7 +318,7 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Buy Price Type
+            Type de prix d&apos;achat
             <select
               value={config.buyPriceType}
               onChange={(e) => setConfig((c) => ({ ...c, buyPriceType: e.target.value as PriceType }))}
@@ -332,7 +332,7 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Sell Location
+            Lieu de vente
             <select
               value={config.sellTo}
               onChange={(e) => setConfig((c) => ({ ...c, sellTo: e.target.value }))}
@@ -346,7 +346,7 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Sell Price Type
+            Type de prix de vente
             <select
               value={config.sellPriceType}
               onChange={(e) => setConfig((c) => ({ ...c, sellPriceType: e.target.value as PriceType }))}
@@ -361,7 +361,7 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
           </label>
           {(config.buyPriceType === "average" || config.sellPriceType === "average") && (
             <label className="flex flex-col gap-1 text-sm text-navy-300">
-              Average Days
+              Nombre de jours (moyenne)
               <input
                 type="number"
                 min={1}
@@ -383,11 +383,11 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
         </div>
 
         <p className="mt-2 text-xs text-navy-400">
-          Sales tax {(salesTaxRateFor(config.premium) * 100).toFixed(2)}% / Setup fee{" "}
-          {(setupFeeRateFor(config.premium) * 100).toFixed(2)}% (from Premium status). Setup fee is charged
-          only on the side where you place your own resting order — see &quot;Sell Order&quot; vs &quot;Buy
-          Order&quot; above. My EMV (your own synced Estimated Market Value) is available once you&apos;re
-          signed in with Discord.
+          Taxe de vente {(salesTaxRateFor(config.premium) * 100).toFixed(2)}% / Frais de placement{" "}
+          {(setupFeeRateFor(config.premium) * 100).toFixed(2)}% (statut Premium). Les frais de placement ne
+          s&apos;appliquent que du côté où vous placez votre propre ordre — voir « Ordre de vente » et « Ordre
+          d&apos;achat » ci-dessus. Votre EMV (votre Valeur Marchande Estimée synchronisée) est disponible une fois
+          connecté avec Discord.
         </p>
 
         <div className="mt-4 flex items-center gap-3">
@@ -395,10 +395,10 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
             type="button"
             onClick={saveSettings}
             disabled={!isSignedIn || saving}
-            title={!isSignedIn ? "Sign in with Discord to save settings" : undefined}
+            title={!isSignedIn ? "Connectez-vous avec Discord pour enregistrer les paramètres" : undefined}
             className="rounded border border-navy-600 px-4 py-2 text-sm text-navy-200 hover:bg-navy-700 disabled:opacity-50"
           >
-            {saving ? "Saving…" : "Save Settings"}
+            {saving ? "Enregistrement…" : "Enregistrer les paramètres"}
           </button>
           {!isSignedIn && (
             <button
@@ -415,7 +415,7 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
             disabled={pricesLoading || rows.length === 0}
             className="rounded bg-gold-500 px-3 py-1.5 text-sm font-medium text-navy-950 hover:bg-gold-400 disabled:opacity-50"
           >
-            {pricesLoading ? "Loading…" : "Refresh Prices"}
+            {pricesLoading ? "Chargement…" : "Rafraîchir les prix"}
           </button>
         </div>
       </section>
@@ -430,7 +430,7 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
           onManualPriceChange={onManualPriceChange}
         />
       ) : (
-        <p className="text-sm text-navy-400">Click on a result in the table below to show journal run details.</p>
+        <p className="text-sm text-navy-400">Cliquez sur un résultat dans le tableau ci-dessous pour voir le détail du registre.</p>
       )}
 
       <ResultsGrid

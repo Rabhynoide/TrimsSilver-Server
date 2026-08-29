@@ -50,9 +50,11 @@ function asArray(value) {
 function buildNameIndex(formattedItems) {
   const nameByUniqueName = new Map();
   for (const item of formattedItems) {
-    const enName = item.LocalizedNames?.["EN-US"];
-    if (item.UniqueName && enName) {
-      nameByUniqueName.set(item.UniqueName, enName);
+    // FR-FR first (the site is French-only), falling back to EN-US for the
+    // rare item ao-bin-dumps hasn't localized yet.
+    const name = item.LocalizedNames?.["FR-FR"] ?? item.LocalizedNames?.["EN-US"];
+    if (item.UniqueName && name) {
+      nameByUniqueName.set(item.UniqueName, name);
     }
   }
   return nameByUniqueName;
@@ -265,9 +267,11 @@ function buildFoodIndex(rawItems, nameByUniqueName) {
 function buildLocalizationIndex(tmx) {
   const textByTag = new Map();
   for (const tu of tmx.body.tu) {
-    const tuv = Array.isArray(tu.tuv)
-      ? tu.tuv.find((t) => t["@xml:lang"] === "EN-US") ?? tu.tuv[0]
-      : tu.tuv;
+    const tuvArray = (Array.isArray(tu.tuv) ? tu.tuv : [tu.tuv]).filter(Boolean);
+    const tuv =
+      tuvArray.find((t) => t["@xml:lang"] === "FR-FR") ??
+      tuvArray.find((t) => t["@xml:lang"] === "EN-US") ??
+      tuvArray[0];
     if (tu["@tuid"] && tuv?.seg) {
       textByTag.set(tu["@tuid"], tuv.seg);
     }

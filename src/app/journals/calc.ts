@@ -2,15 +2,17 @@ import { journalMarketId, type JournalFamily } from "@/data/journal-constants";
 import type { Scenario } from "./types";
 
 export type LootEntry =
-  | { itemName: string; itemAmount: number; weight: number; enchant: number }
+  | { itemName: string; name: string; itemAmount: number; weight: number; enchant: number }
   | { silverAmount: number; weight: number };
 
-export type FillOption = { uniqueName: string; famevalue: number };
+export type FillOption = { uniqueName: string; name: string; famevalue: number };
 
 export type JournalRow = {
   uniqueName: string;
   family: JournalFamily;
   tier: number;
+  nameEmpty: string;
+  nameFull: string;
   emptySilver: number;
   maxFame: number;
   baseLootAmount: number;
@@ -104,7 +106,7 @@ export function evaluateJournal(row: JournalRow, ctx: EvalContext): EvalResult {
   if (ctx.scenario === "buyFullSellMats") {
     const price = ctx.buyPriceOf(fullId);
     if (price == null) missing.push(fullId);
-    buyLines.push(buyLine("Full journal", fullId, 1, price, ctx));
+    buyLines.push(buyLine(row.nameFull, fullId, 1, price, ctx));
   } else {
     // Empty journals ARE real player-market goods (confirmed in-game — real
     // sell orders at varying prices), but AODP currently has no scan coverage
@@ -116,7 +118,7 @@ export function evaluateJournal(row: JournalRow, ctx: EvalContext): EvalResult {
     // it. Prefer live data when AODP has it (in case their coverage improves)
     // and fall back to the vendor price otherwise — never "missing".
     const price = ctx.buyPriceOf(emptyId) ?? row.emptySilver;
-    buyLines.push(buyLine("Empty journal", emptyId, 1, price, ctx));
+    buyLines.push(buyLine(row.nameEmpty, emptyId, 1, price, ctx));
 
     if (row.fillOptions && row.fillOptions.length > 0) {
       const chosenId = ctx.fillChoiceFor(row) ?? row.fillOptions[0].uniqueName;
@@ -124,12 +126,12 @@ export function evaluateJournal(row: JournalRow, ctx: EvalContext): EvalResult {
       const units = row.maxFame / option.famevalue;
       const fillPrice = ctx.buyPriceOf(option.uniqueName);
       if (fillPrice == null) missing.push(option.uniqueName);
-      buyLines.push(buyLine(`Fill: ${option.uniqueName}`, option.uniqueName, units, fillPrice, ctx));
+      buyLines.push(buyLine(`Remplissage : ${option.name}`, option.uniqueName, units, fillPrice, ctx));
     } else {
       usingManualFillCost = true;
       const manualCost = ctx.manualFillCostFor(row) ?? 0;
       buyLines.push({
-        label: "Fill cost (manual)",
+        label: "Coût de remplissage (manuel)",
         marketId: null,
         qtyPerJournal: 1,
         unitPrice: manualCost,
@@ -143,24 +145,24 @@ export function evaluateJournal(row: JournalRow, ctx: EvalContext): EvalResult {
   if (ctx.scenario === "buyEmptySellFull") {
     const price = ctx.sellPriceOf(fullId);
     if (price == null) missing.push(fullId);
-    sellLines.push(sellLine(fullId, 1, price, ctx));
+    sellLines.push(sellLine(row.nameFull, 1, price, ctx));
   } else {
     // Turning in a filled journal returns the (now empty) journal itself
     // along with the loot — same live-price-first, vendor-price-fallback
     // reasoning as the buy side.
     const emptyBackPrice = ctx.sellPriceOf(emptyId) ?? row.emptySilver;
-    sellLines.push(sellLine(emptyId, 1, emptyBackPrice, ctx));
+    sellLines.push(sellLine(row.nameEmpty, 1, emptyBackPrice, ctx));
 
     for (const entry of row.loot) {
       const expected = expectedShare(row, entry, ctx.yieldPct);
       if ("silverAmount" in entry) {
         // Mercenary journals return raw silver, not a tradable item — no
         // market price, no tax/fee, it's just delivered.
-        sellLines.push({ itemName: "Silver", qtyPerJournal: expected, unitPrice: 1, setupFee: 0, salesTax: 0, result: expected });
+        sellLines.push({ itemName: "Argent", qtyPerJournal: expected, unitPrice: 1, setupFee: 0, salesTax: 0, result: expected });
       } else {
         const price = ctx.sellPriceOf(entry.itemName);
         if (price == null) missing.push(entry.itemName);
-        sellLines.push(sellLine(entry.itemName, expected, price, ctx));
+        sellLines.push(sellLine(entry.name, expected, price, ctx));
       }
     }
   }

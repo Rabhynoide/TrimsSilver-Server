@@ -40,6 +40,10 @@ import path from "node:path";
 
 const RAW_ITEMS_URL =
   "https://raw.githubusercontent.com/broderickhyman/ao-bin-dumps/master/items.json";
+const FORMATTED_ITEMS_URL =
+  "https://raw.githubusercontent.com/broderickhyman/ao-bin-dumps/master/formatted/items.json";
+const LOCALIZATION_URL =
+  "https://raw.githubusercontent.com/broderickhyman/ao-bin-dumps/master/localization.json";
 
 const OUTPUT_PATH = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -76,7 +80,33 @@ function asArray(value) {
   return Array.isArray(value) ? value : [value];
 }
 
-function buildLoot(lootlist) {
+function buildNameIndex(formattedItems) {
+  const nameByUniqueName = new Map();
+  for (const item of formattedItems) {
+    const name = item.LocalizedNames?.["FR-FR"] ?? item.LocalizedNames?.["EN-US"];
+    if (item.UniqueName && name) {
+      nameByUniqueName.set(item.UniqueName, name);
+    }
+  }
+  return nameByUniqueName;
+}
+
+// Enchanted resources (T?_WOOD_LEVEL1..4 etc.) are each their own standalone
+// game item but carry no localization entry of their own — the client
+// synthesizes their display client-side. Same site-wide convention as
+// market-prices/types.ts's rendering (`{name} [{tier}.{enchant}]`): fall back
+// to the base item's name plus that tier.enchant suffix.
+function resolveResourceName(uniqueName, nameByUniqueName) {
+  const direct = nameByUniqueName.get(uniqueName);
+  if (direct) return direct;
+  const match = uniqueName.match(/^(T(\d)_.+)_LEVEL(\d)$/);
+  if (!match) return uniqueName;
+  const [, base, tier, level] = match;
+  const baseName = nameByUniqueName.get(base);
+  return baseName ? `${baseName} [${tier}.${level}]` : uniqueName;
+}
+
+function buildLoot(lootlist, nameByUniqueName) {
   return asArray(lootlist?.loot).map((entry) => {
     if (entry["@silveramount"] != null) {
       return {
@@ -84,8 +114,10 @@ function buildLoot(lootlist) {
         weight: parseFloat(entry["@weight"] ?? "1"),
       };
     }
+    const itemName = entry["@itemname"];
     return {
-      itemName: entry["@itemname"],
+      itemName,
+      name: resolveResourceName(itemName, nameByUniqueName),
       itemAmount: parseFloat(entry["@itemamount"] ?? "1"),
       weight: parseFloat(entry["@weight"] ?? "1"),
       enchant: entry["@itemenchantmentlevel"] ? parseInt(entry["@itemenchantmentlevel"], 10) : 0,
@@ -93,18 +125,43 @@ function buildLoot(lootlist) {
   });
 }
 
-function buildFillOptions(item, famevalueByName) {
+// Journals don't have a single display name — the client shows a different
+// string per fill state ("Registre de l'apprenti bûcheron (vide)" vs
+// "(complet)"), addressed by dedicated localization tags
+// (@ITEMS_<uniqueName>_EMPTY / _FULL) rather than the item's own default
+// LocalizationNameVariable (which resolves to an unrelated "partially full"
+// string, since that's the tag journalitem entries carry by default).
+function buildLocalizationIndex(tmx) {
+  const textByTag = new Map();
+  for (const tu of tmx.body.tu) {
+    const tuvArray = (Array.isArray(tu.tuv) ? tu.tuv : [tu.tuv]).filter(Boolean);
+    const tuv =
+      tuvArray.find((t) => t["@xml:lang"] === "FR-FR") ??
+      tuvArray.find((t) => t["@xml:lang"] === "EN-US") ??
+      tuvArray[0];
+    if (tu["@tuid"] && tuv?.seg) {
+      textByTag.set(tu["@tuid"], tuv.seg);
+    }
+  }
+  return textByTag;
+}
+
+function buildFillOptions(item, famevalueByName, nameByUniqueName) {
   const validItems = asArray(item.famefillingmissions?.gatherfame?.validitem);
   if (validItems.length === 0) return null;
 
   return validItems
     .map((v) => v["@id"])
     .filter(Boolean)
-    .map((uniqueName) => ({ uniqueName, famevalue: famevalueByName.get(uniqueName) ?? null }))
+    .map((uniqueName) => ({
+      uniqueName,
+      name: resolveResourceName(uniqueName, nameByUniqueName),
+      famevalue: famevalueByName.get(uniqueName) ?? null,
+    }))
     .filter((opt) => opt.famevalue != null);
 }
 
-function extractCatalog(rawItems) {
+function extractCatalog(rawItems, textByTag, nameByUniqueName) {
   const journalItems = asArray(rawItems.items.journalitem);
   const simpleItems = asArray(rawItems.items.simpleitem);
 
@@ -121,15 +178,18 @@ function extractCatalog(rawItems) {
     const family = uniqueName.replace(`T${tier}_JOURNAL_`, "");
     const isGathering = GATHERING_FAMILIES.has(family) || GATHERING_TROPHY_FAMILIES.has(family);
 
+    const genericName = textByTag.get(`@ITEMS_${uniqueName}`) ?? uniqueName;
     rows.push({
       uniqueName,
       family,
       tier,
+      nameEmpty: textByTag.get(`@ITEMS_${uniqueName}_EMPTY`) ?? genericName,
+      nameFull: textByTag.get(`@ITEMS_${uniqueName}_FULL`) ?? genericName,
       emptySilver: parseInt(item.craftingrequirements?.["@silver"] ?? "0", 10),
       maxFame: parseFloat(item["@maxfame"]),
       baseLootAmount: parseFloat(item["@baselootamount"]),
-      loot: buildLoot(item.lootlist),
-      fillOptions: isGathering ? buildFillOptions(item, famevalueByName) : null,
+      loot: buildLoot(item.lootlist, nameByUniqueName),
+      fillOptions: isGathering ? buildFillOptions(item, famevalueByName, nameByUniqueName) : null,
     });
   }
 
@@ -138,10 +198,16 @@ function extractCatalog(rawItems) {
 }
 
 async function main() {
-  console.log("Fetching ao-bin-dumps item data...");
-  const rawItems = await fetchJson(RAW_ITEMS_URL);
+  console.log("Fetching ao-bin-dumps item data (this includes a ~50MB localization file, may take a moment)...");
+  const [rawItems, formattedItems, localizationData] = await Promise.all([
+    fetchJson(RAW_ITEMS_URL),
+    fetchJson(FORMATTED_ITEMS_URL),
+    fetchJson(LOCALIZATION_URL),
+  ]);
+  const textByTag = buildLocalizationIndex(localizationData.tmx);
+  const nameByUniqueName = buildNameIndex(formattedItems);
 
-  const catalog = extractCatalog(rawItems);
+  const catalog = extractCatalog(rawItems, textByTag, nameByUniqueName);
 
   writeFileSync(OUTPUT_PATH, JSON.stringify(catalog), "utf-8");
   console.log(`Wrote ${catalog.length} journal items to ${OUTPUT_PATH}`);
