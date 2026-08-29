@@ -52,11 +52,21 @@ function FlipperIcon() {
   );
 }
 
+function JournalsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  );
+}
+
 const NAV_ITEMS: { href: string; label: string; icon: ReactNode }[] = [
   { href: "/", label: "Home", icon: <HomeIcon /> },
   { href: "/market-prices", label: "Market Prices", icon: <MarketIcon /> },
   { href: "/farming", label: "Farming & Breeding", icon: <FarmingIcon /> },
   { href: "/crafting", label: "Crafting Calculator", icon: <CraftingIcon /> },
+  { href: "/journals", label: "Journals Calculator", icon: <JournalsIcon /> },
   { href: "/flipper", label: "Flipper", icon: <FlipperIcon /> },
 ];
 

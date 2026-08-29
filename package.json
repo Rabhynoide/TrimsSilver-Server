@@ -12,7 +12,8 @@
     "db:deploy": "prisma migrate deploy",
     "catalog:build": "node scripts/build-item-catalog.mjs",
     "farming-catalog:build": "node scripts/build-farming-catalog.mjs",
-    "crafting-catalog:build": "node scripts/build-crafting-catalog.mjs"
+    "crafting-catalog:build": "node scripts/build-crafting-catalog.mjs",
+    "journal-catalog:build": "node scripts/build-journal-catalog.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",

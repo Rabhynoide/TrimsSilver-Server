@@ -35,6 +35,7 @@ model User {
   marketPriceFavorites          MarketPriceFavorite[]
   farmingCalculatorSettings     FarmingCalculatorSettings?
   craftingCalculatorSettings    CraftingCalculatorSettings?
+  journalsCalculatorSettings    JournalsCalculatorSettings?
 }
 
 // Bearer token the desktop client sends on ingest requests, minted by a signed-in browser
@@ -295,6 +296,20 @@ model FarmingCalculatorSettings {
 // user, same single-profile shape as FarmingCalculatorSettings above.
 // Browser-only feature, gated on the Auth.js session cookie.
 model CraftingCalculatorSettings {
+  id     String @id @default(cuid())
+  config Json
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  updatedAt DateTime @updatedAt
+}
+
+// A saved Journals Calculator profile (scenario, amount, happiness/yield,
+// cities, buy/sell price types, per-family fill choice/manual fill cost,
+// manual prices), same single-profile shape as Farming/Crafting above.
+// Browser-only feature, gated on the Auth.js session cookie.
+model JournalsCalculatorSettings {
   id     String @id @default(cuid())
   config Json
 
