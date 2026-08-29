@@ -36,9 +36,9 @@ function BuyLineRow({ line }: { line: BuyLine }) {
 function SellLineRow({ line }: { line: SellLine }) {
   return (
     <div className="flex items-center gap-3 rounded border border-navy-700 bg-navy-900 px-3 py-2">
-      {line.itemName !== "Argent" && (
+      {line.marketId && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={iconUrl(line.itemName)} alt="" className="h-8 w-8 shrink-0" />
+        <img src={iconUrl(line.marketId)} alt="" className="h-8 w-8 shrink-0" />
       )}
       <div className="flex flex-1 flex-col">
         <span className="text-sm text-navy-100">{line.itemName}</span>

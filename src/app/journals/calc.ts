@@ -48,6 +48,7 @@ export type BuyLine = {
 
 export type SellLine = {
   itemName: string;
+  marketId: string | null;
   qtyPerJournal: number;
   unitPrice: number | null;
   setupFee: number;
@@ -74,11 +75,17 @@ function buyLine(label: string, marketId: string | null, qty: number, unitPrice:
   return { label, marketId, qtyPerJournal: qty, unitPrice, setupFee, cost: base + setupFee };
 }
 
-function sellLine(itemName: string, qty: number, unitPrice: number | null, ctx: EvalContext): SellLine {
+function sellLine(
+  itemName: string,
+  marketId: string | null,
+  qty: number,
+  unitPrice: number | null,
+  ctx: EvalContext,
+): SellLine {
   const base = (unitPrice ?? 0) * qty;
   const setupFee = ctx.sellSetupFeeApplies ? base * ctx.setupFeeRate : 0;
   const salesTax = base * ctx.salesTaxRate;
-  return { itemName, qtyPerJournal: qty, unitPrice, setupFee, salesTax, result: base - setupFee - salesTax };
+  return { itemName, marketId, qtyPerJournal: qty, unitPrice, setupFee, salesTax, result: base - setupFee - salesTax };
 }
 
 // Expected units of a specific reward SKU per journal delivered, at 100%
@@ -145,24 +152,32 @@ export function evaluateJournal(row: JournalRow, ctx: EvalContext): EvalResult {
   if (ctx.scenario === "buyEmptySellFull") {
     const price = ctx.sellPriceOf(fullId);
     if (price == null) missing.push(fullId);
-    sellLines.push(sellLine(row.nameFull, 1, price, ctx));
+    sellLines.push(sellLine(row.nameFull, fullId, 1, price, ctx));
   } else {
     // Turning in a filled journal returns the (now empty) journal itself
     // along with the loot — same live-price-first, vendor-price-fallback
     // reasoning as the buy side.
     const emptyBackPrice = ctx.sellPriceOf(emptyId) ?? row.emptySilver;
-    sellLines.push(sellLine(row.nameEmpty, 1, emptyBackPrice, ctx));
+    sellLines.push(sellLine(row.nameEmpty, emptyId, 1, emptyBackPrice, ctx));
 
     for (const entry of row.loot) {
       const expected = expectedShare(row, entry, ctx.yieldPct);
       if ("silverAmount" in entry) {
         // Mercenary journals return raw silver, not a tradable item — no
         // market price, no tax/fee, it's just delivered.
-        sellLines.push({ itemName: "Argent", qtyPerJournal: expected, unitPrice: 1, setupFee: 0, salesTax: 0, result: expected });
+        sellLines.push({
+          itemName: "Argent",
+          marketId: null,
+          qtyPerJournal: expected,
+          unitPrice: 1,
+          setupFee: 0,
+          salesTax: 0,
+          result: expected,
+        });
       } else {
         const price = ctx.sellPriceOf(entry.itemName);
         if (price == null) missing.push(entry.itemName);
-        sellLines.push(sellLine(entry.name, expected, price, ctx));
+        sellLines.push(sellLine(entry.name, entry.itemName, expected, price, ctx));
       }
     }
   }
