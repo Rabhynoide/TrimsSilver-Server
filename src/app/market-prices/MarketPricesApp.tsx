@@ -13,7 +13,7 @@ import {
   QUALITY_LEVELS,
 } from "./types";
 import type { CatalogItem, Favorite, PriceCheckerConfig, PriceRow, SelectedItem } from "./types";
-import { readJsonResponse } from "@/lib/http";
+import { fetchMarketPrices } from "@/lib/marketPricesClient";
 
 type Tab = "checker" | "favorites";
 
@@ -62,23 +62,15 @@ export default function MarketPricesApp({ isSignedIn }: { isSignedIn: boolean })
     setPricesLoading(true);
     setPricesError(null);
     try {
-      const params = new URLSearchParams({
-        items: items.map(itemId).join(","),
-        locations: cfg.cities.join(","),
+      const averageDays = cfg.showAverages ? cfg.averageDays : undefined;
+      const results = await fetchMarketPrices({
+        items: items.map(itemId),
+        locations: cfg.cities,
         qualities: QUALITY_LEVELS.join(","),
         region: cfg.region,
+        averageDays,
       });
-      if (cfg.showAverages) {
-        params.set("averageDays", String(cfg.averageDays));
-      }
-      const res = await fetch(`/api/market/prices?${params.toString()}`);
-      const data = await readJsonResponse<{ prices?: PriceRow[]; error?: string; detail?: string }>(res);
-      if (!res.ok) {
-        setPricesError(data.detail ?? data.error ?? `Request failed (${res.status})`);
-        setPrices([]);
-        return;
-      }
-      setPrices(data.prices ?? []);
+      setPrices(results);
     } catch (err) {
       setPricesError(err instanceof Error ? err.message : "Network error");
       setPrices([]);

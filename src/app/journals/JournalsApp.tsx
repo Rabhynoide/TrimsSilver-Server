@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AODP_REGIONS } from "@/lib/aodp";
 import { CITIES } from "../market-prices/types";
 import type { PriceRow } from "../market-prices/types";
-import { readJsonResponse } from "@/lib/http";
+import { fetchMarketPrices } from "@/lib/marketPricesClient";
 import { journalMarketId, JOURNAL_FAMILY_ORDER } from "@/data/journal-constants";
 import { evaluateJournal, type JournalRow } from "./calc";
 import {
@@ -35,7 +35,6 @@ const PRICE_TYPE_LABELS: Record<PriceType, string> = {
   manual: "Manual",
 };
 
-const MAX_ITEMS_PER_REQUEST = 100;
 const MAX_EMV_ITEMS_PER_REQUEST = 200;
 
 function collectPricedItems(rows: JournalRow[]): string[] {
@@ -55,56 +54,6 @@ function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
   return out;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// Journals prices the whole 133-journal catalog + every reward material/fill
-// resource at once (~580 distinct items, well above /api/market/prices' own
-// 100-item cap — see MAX_ITEMS_PER_REQUEST below), unlike Farming/Crafting's
-// smaller single-request catalogs. Firing 6 chunked requests back-to-back can
-// trip AODP's own rate limiting (a real 429 hit live in production), so each
-// chunk gets a short gap plus a couple of retries with backoff specifically
-// for 429 — a transient one self-heals instead of failing the whole refresh.
-const CHUNK_DELAY_MS = 300;
-const RATE_LIMIT_RETRIES = 3;
-const RATE_LIMIT_BACKOFF_MS = 1500;
-
-async function fetchPricesBatch(
-  batch: string[],
-  locations: string[],
-  region: string,
-  averageDays: number | null,
-): Promise<PriceRow[]> {
-  const params = new URLSearchParams({
-    items: batch.join(","),
-    locations: locations.join(","),
-    qualities: "1",
-    region,
-  });
-  if (averageDays != null) params.set("averageDays", String(averageDays));
-
-  for (let attempt = 0; attempt <= RATE_LIMIT_RETRIES; attempt++) {
-    const res = await fetch(`/api/market/prices?${params.toString()}`);
-    if (res.status === 429) {
-      if (attempt < RATE_LIMIT_RETRIES) {
-        await sleep(RATE_LIMIT_BACKOFF_MS * (attempt + 1));
-        continue;
-      }
-      // A 429 body isn't guaranteed to be JSON (it may come from a proxy in
-      // front of the app rather than our own route handler), so don't hand
-      // it to readJsonResponse — throw a clear message directly instead.
-      throw new Error("Rate limited by the price source after several retries — try again in a moment.");
-    }
-    const data = await readJsonResponse<{ prices?: PriceRow[]; error?: string; detail?: string }>(res);
-    if (!res.ok) {
-      throw new Error(data.detail ?? data.error ?? `Request failed (${res.status})`);
-    }
-    return data.prices ?? [];
-  }
-  throw new Error("Rate limited by the price source after several retries — try again in a moment.");
 }
 
 export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
@@ -143,15 +92,9 @@ export default function JournalsApp({ isSignedIn }: { isSignedIn: boolean }) {
     try {
       const items = collectPricedItems(rows);
       const locations = [...new Set([config.buyFrom, config.sellTo])];
-      const batches = chunk(items, MAX_ITEMS_PER_REQUEST);
       const averageDays =
-        config.buyPriceType === "average" || config.sellPriceType === "average" ? config.averageDays : null;
-      const results: PriceRow[] = [];
-      for (let i = 0; i < batches.length; i++) {
-        if (i > 0) await sleep(CHUNK_DELAY_MS);
-        const batchPrices = await fetchPricesBatch(batches[i], locations, config.region, averageDays);
-        results.push(...batchPrices);
-      }
+        config.buyPriceType === "average" || config.sellPriceType === "average" ? config.averageDays : undefined;
+      const results = await fetchMarketPrices({ items, locations, qualities: "1", region: config.region, averageDays });
       setPrices(results);
     } catch (err) {
       setPricesError(err instanceof Error ? err.message : "Network error");

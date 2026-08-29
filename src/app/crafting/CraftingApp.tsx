@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AODP_REGIONS } from "@/lib/aodp";
 import { CITIES } from "../market-prices/types";
 import type { CatalogItem, PriceRow } from "../market-prices/types";
-import { readJsonResponse } from "@/lib/http";
+import { fetchMarketPrices } from "@/lib/marketPricesClient";
 import { craftItemId, evaluateCraft, recipeForEnchant, type CraftItem } from "./calc";
 import {
   defaultCraftingConfig,
@@ -92,23 +92,15 @@ export default function CraftingApp({ isSignedIn }: { isSignedIn: boolean }) {
       items.add(craftItemId(selectedCraftItem.uniqueName, selectedRecipe.enchant));
 
       const locations = [...new Set([config.buyFrom, config.sellTo])];
-      const params = new URLSearchParams({
-        items: [...items].join(","),
-        locations: locations.join(","),
+      const averageDays = config.priceMode === "average" ? config.averageDays : undefined;
+      const results = await fetchMarketPrices({
+        items: [...items],
+        locations,
         qualities: "1,2,3,4,5",
         region: config.region,
+        averageDays,
       });
-      if (config.priceMode === "average") {
-        params.set("averageDays", String(config.averageDays));
-      }
-      const res = await fetch(`/api/market/prices?${params.toString()}`);
-      const data = await readJsonResponse<{ prices?: PriceRow[]; error?: string; detail?: string }>(res);
-      if (!res.ok) {
-        setPricesError(data.detail ?? data.error ?? `Request failed (${res.status})`);
-        setPrices([]);
-        return;
-      }
-      setPrices(data.prices ?? []);
+      setPrices(results);
     } catch (err) {
       setPricesError(err instanceof Error ? err.message : "Network error");
       setPrices([]);

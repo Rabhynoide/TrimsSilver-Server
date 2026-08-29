@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CITIES } from "../market-prices/types";
 import type { PriceRow } from "../market-prices/types";
-import { readJsonResponse } from "@/lib/http";
+import { fetchMarketPrices } from "@/lib/marketPricesClient";
 import type { FoodItem, FarmingRecipe, FarmingSpecDef } from "./calc";
 import { isAnimalRecipe, isPlantRecipe } from "./calc";
 import {
@@ -100,23 +100,9 @@ export default function FarmingApp({ isSignedIn }: { isSignedIn: boolean }) {
     try {
       const items = collectPricedItems(catalog);
       const locations = [...new Set([config.buyFrom, config.sellTo])];
-      const params = new URLSearchParams({
-        items: items.join(","),
-        locations: locations.join(","),
-        qualities: "1",
-        region: config.region,
-      });
-      if (config.priceMode === "average") {
-        params.set("averageDays", String(config.averageDays));
-      }
-      const res = await fetch(`/api/market/prices?${params.toString()}`);
-      const data = await readJsonResponse<{ prices?: PriceRow[]; error?: string; detail?: string }>(res);
-      if (!res.ok) {
-        setPricesError(data.detail ?? data.error ?? `Request failed (${res.status})`);
-        setPrices([]);
-        return;
-      }
-      setPrices(data.prices ?? []);
+      const averageDays = config.priceMode === "average" ? config.averageDays : undefined;
+      const results = await fetchMarketPrices({ items, locations, qualities: "1", region: config.region, averageDays });
+      setPrices(results);
     } catch (err) {
       setPricesError(err instanceof Error ? err.message : "Network error");
       setPrices([]);

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CITIES, itemId } from "../market-prices/types";
 import type { CatalogItem, PriceRow } from "../market-prices/types";
-import { readJsonResponse } from "@/lib/http";
+import { fetchMarketPrices } from "@/lib/marketPricesClient";
 import ItemPicker from "../market-prices/ItemPicker";
 import { findFlips, findPublicFlips, type RawOrder } from "./calc";
 import { defaultFlipperConfig, REGION_SERVER_ID, salesTaxRateFor, type FlipperConfig } from "./types";
@@ -66,20 +66,13 @@ export default function FlipperApp({ isSignedIn }: { isSignedIn: boolean }) {
     setPublicPricesError(null);
     try {
       const items = [...new Set(config.selectedItems.map(itemId))];
-      const params = new URLSearchParams({
-        items: items.join(","),
-        locations: CITIES.join(","),
+      const results = await fetchMarketPrices({
+        items,
+        locations: [...CITIES],
         qualities: "1,2,3,4,5",
         region: config.region,
       });
-      const res = await fetch(`/api/market/prices?${params.toString()}`);
-      const data = await readJsonResponse<{ prices?: PriceRow[]; error?: string; detail?: string }>(res);
-      if (!res.ok) {
-        setPublicPricesError(data.detail ?? data.error ?? `Request failed (${res.status})`);
-        setPublicPrices([]);
-        return;
-      }
-      setPublicPrices(data.prices ?? []);
+      setPublicPrices(results);
     } catch (err) {
       setPublicPricesError(err instanceof Error ? err.message : "Network error");
       setPublicPrices([]);
