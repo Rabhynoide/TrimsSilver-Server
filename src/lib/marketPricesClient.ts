@@ -1,26 +1,22 @@
 import type { PriceRow } from "@/app/market-prices/types";
 import { readJsonResponse } from "./http";
 
-// /api/market/prices' own sanity ceiling on one request (see MAX_ITEMS in
-// that route) — kept in sync manually since it's enforced server-side, not
-// exported from there. The real AODP-facing constraints (its 4096-char URL
-// limit and 180/min-300/5min rate limits) are handled server-side in
-// src/lib/aodp.ts, which every request here eventually goes through — this
-// chunking exists mainly to keep any single request to our own server
-// reasonably sized, plus the retry below is a defense-in-depth safety net
-// for whatever else could return a transient error on that hop (a proxy in
-// front of the app, a network blip) rather than the primary AODP-rate-limit
-// fix.
-const MAX_ITEMS_PER_REQUEST = 500;
+// The real constraint here isn't AODP's own limits (those are handled
+// server-side in src/lib/aodp.ts) — it's the reverse proxy in front of the
+// live site. Confirmed live in production: a long `items=` query string
+// (Journals can need ~500 items, ~10KB+ of URL) doesn't get a clean 4xx from
+// it, it kills the connection outright (nginx logs status 000 plus Lua
+// errors — "using uninitialized 'ctx_ref'/'is_whitelisted'/'reason' variable
+// while logging request" — and increments its anti-abuse "bad behavior"
+// counter each time, which could eventually get a legitimate user's IP
+// throttled). So chunking is sized by actual URL length against a
+// conservative budget, not a guessed item count — this protects against
+// whatever the proxy's real limit turns out to be, the same reasoning as
+// aodp.ts's chunkItemsByUrlLength for AODP's documented 4096-char limit.
+const MAX_URL_LENGTH = 2000;
 const CHUNK_DELAY_MS = 300;
 const RATE_LIMIT_RETRIES = 3;
 const RATE_LIMIT_BACKOFF_MS = 1500;
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
-}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -34,14 +30,47 @@ export type FetchMarketPricesParams = {
   averageDays?: number;
 };
 
-async function fetchBatch(batch: string[], params: FetchMarketPricesParams): Promise<PriceRow[]> {
+function buildSearchParams(items: string[], params: FetchMarketPricesParams): URLSearchParams {
   const searchParams = new URLSearchParams({
-    items: batch.join(","),
+    items: items.join(","),
     locations: params.locations.join(","),
     qualities: params.qualities,
     region: params.region,
   });
   if (params.averageDays != null) searchParams.set("averageDays", String(params.averageDays));
+  return searchParams;
+}
+
+// Packs `items` into the fewest groups whose full request URL (this route's
+// path + every other param, all present in every chunk) stays under
+// MAX_URL_LENGTH. Computes the fixed overhead once (from an empty item list)
+// rather than assuming a flat per-item average, so it stays correct no
+// matter which items are involved — item ids vary a lot in length (7 to 33+
+// chars for the longest journal/equipment ids).
+function chunkItemsByUrlLength(items: string[], params: FetchMarketPricesParams): string[][] {
+  const overhead = `/api/market/prices?${buildSearchParams([], params).toString()}`.length;
+  const budget = MAX_URL_LENGTH - overhead;
+
+  const batches: string[][] = [];
+  let current: string[] = [];
+  let currentLength = 0;
+
+  for (const item of items) {
+    const addedLength = item.length + (current.length > 0 ? 1 : 0); // +1 for the joining comma
+    if (current.length > 0 && currentLength + addedLength > budget) {
+      batches.push(current);
+      current = [];
+      currentLength = 0;
+    }
+    current.push(item);
+    currentLength += item.length + (current.length > 1 ? 1 : 0);
+  }
+  if (current.length > 0) batches.push(current);
+  return batches;
+}
+
+async function fetchBatch(batch: string[], params: FetchMarketPricesParams): Promise<PriceRow[]> {
+  const searchParams = buildSearchParams(batch, params);
 
   for (let attempt = 0; attempt <= RATE_LIMIT_RETRIES; attempt++) {
     const res = await fetch(`/api/market/prices?${searchParams.toString()}`);
@@ -66,16 +95,12 @@ async function fetchBatch(batch: string[], params: FetchMarketPricesParams): Pro
 
 // Shared client-side entry point for every feature that reads live prices
 // (Market Prices, Farming, Crafting, Journals, Flipper's Public Flips) —
-// splits `items` into ≤500-item chunks (that route's own sanity ceiling)
-// with a short gap between requests, and retries a 429 from our own server a
-// few times before giving up. The AODP-specific rate limiting this was
-// originally written to fix (see PROJECT_STATUS.md) now lives in
-// src/lib/aodp.ts instead, so this is a secondary safety net rather than the
-// primary defense — but it's still the one place every feature goes through,
-// so any future protection needed at this layer only has to be added once.
+// splits `items` into chunks sized by actual URL length (see
+// chunkItemsByUrlLength above) with a short gap between requests, and
+// retries a 429 from our own server a few times before giving up.
 export async function fetchMarketPrices(params: FetchMarketPricesParams): Promise<PriceRow[]> {
   if (params.items.length === 0) return [];
-  const batches = chunk(params.items, MAX_ITEMS_PER_REQUEST);
+  const batches = chunkItemsByUrlLength(params.items, params);
   const results: PriceRow[] = [];
   for (let i = 0; i < batches.length; i++) {
     if (i > 0) await sleep(CHUNK_DELAY_MS);
