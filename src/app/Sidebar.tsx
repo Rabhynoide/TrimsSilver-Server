@@ -41,6 +41,19 @@ function CraftingIcon() {
   );
 }
 
+function CraftFinderIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="5" r="2" />
+      <circle cx="5" cy="19" r="2" />
+      <circle cx="19" cy="19" r="2" />
+      <path d="M12 7v5" />
+      <path d="M12 12L6.5 17" />
+      <path d="M12 12L17.5 17" />
+    </svg>
+  );
+}
+
 function FlipperIcon() {
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -66,6 +79,7 @@ const NAV_ITEMS: { href: string; label: string; icon: ReactNode }[] = [
   { href: "/market-prices", label: "Prix du marché", icon: <MarketIcon /> },
   { href: "/farming", label: "Agriculture et élevage", icon: <FarmingIcon /> },
   { href: "/crafting", label: "Calculateur d'artisanat", icon: <CraftingIcon /> },
+  { href: "/craft-finder", label: "Quoi fabriquer", icon: <CraftFinderIcon /> },
   { href: "/journals", label: "Calculateur de registres", icon: <JournalsIcon /> },
   { href: "/flipper", label: "Flipper", icon: <FlipperIcon /> },
 ];

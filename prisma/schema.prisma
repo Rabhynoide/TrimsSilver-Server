@@ -36,6 +36,7 @@ model User {
   farmingCalculatorSettings     FarmingCalculatorSettings?
   craftingCalculatorSettings    CraftingCalculatorSettings?
   journalsCalculatorSettings    JournalsCalculatorSettings?
+  craftFinderSettings           CraftFinderSettings?
 }
 
 // Bearer token the desktop client sends on ingest requests, minted by a signed-in browser
@@ -319,16 +320,35 @@ model JournalsCalculatorSettings {
   updatedAt DateTime @updatedAt
 }
 
+// A saved Craft Finder profile (simulation city, Premium, price mode,
+// liquidity thresholds, per-category Return Rate/Focus inputs, filters),
+// same single-profile shape as Farming/Crafting/Journals above.
+// Browser-only feature, gated on the Auth.js session cookie.
+model CraftFinderSettings {
+  id     String @id @default(cuid())
+  config Json
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  updatedAt DateTime @updatedAt
+}
+
 // Server-side cache of AODP's public current-price API, kept warm by a
 // background sync job (src/lib/priceCacheSync.ts, started once per server
 // instance from src/instrumentation.ts) instead of every user request
-// live-proxying AODP. Scoped to the item universe Farming and Journals
-// always query in full on every refresh (~650 items, quality 1 only —
-// farmables/journal materials never vary quality) — NOT Crafting's or
-// Market Prices' catalogs, which are queried selectively (one item's
-// recipe, or whatever the user picks) rather than fully every time, so
-// caching their entire catalogs (Crafting alone is ~3,900 craft-item-ids ×
-// 5 qualities × 8 cities) would be wasteful and mostly unused. Those two
+// live-proxying AODP. Scoped to the item universes that get queried in full
+// on every refresh: Farming and Journals' whole catalogs (~650 items,
+// quality 1 only — farmables/journal materials never vary quality), and
+// Craft Finder's whole equipment catalog at enchant 0 (768 items × 5
+// qualities, since a craft-profitability ranking inherently needs the full
+// catalog priced) plus its whole resource-refining catalog (quality 1 only).
+// NOT Crafting's or Market Prices' catalogs, which are queried selectively
+// (one item's recipe, or whatever the user picks) rather than fully every
+// time, so caching their entire catalogs (Crafting alone is ~3,900
+// craft-item-ids × 5 qualities × 8 cities) would be wasteful and mostly
+// unused — same reasoning that keeps Craft Finder's own enchant 1-4
+// variants out of this cache too (see craft-finder-constants.ts). Those
 // stay live-proxied exactly as before; date fields are kept as the raw
 // AODP string (not DateTime) since that's the convention this codebase
 // already uses everywhere else for these values (see PriceRow in
