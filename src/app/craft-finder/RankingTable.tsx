@@ -6,7 +6,15 @@ import type { CraftFinderConfig } from "./types";
 
 const STALE_PRICE_HOURS = 12;
 
-type SortKey = "name" | "tier" | "marginNet" | "marginPct" | "silverPerFocus" | "saleRate";
+type SortKey =
+  | "name"
+  | "tier"
+  | "marginNet"
+  | "marginPct"
+  | "silverPerFocus"
+  | "saleRate"
+  | "maxVolumePerDay"
+  | "estimatedDailyProfit";
 
 function money(value: number): string {
   return Math.round(value).toLocaleString();
@@ -44,6 +52,9 @@ export default function RankingTable({
       else if (sortKey === "marginPct") cmp = (a.marginPct ?? -Infinity) - (b.marginPct ?? -Infinity);
       else if (sortKey === "silverPerFocus") cmp = (a.silverPerFocus ?? -Infinity) - (b.silverPerFocus ?? -Infinity);
       else if (sortKey === "saleRate") cmp = (a.saleRate ?? -1) - (b.saleRate ?? -1);
+      else if (sortKey === "maxVolumePerDay") cmp = (a.maxVolumePerDay ?? -1) - (b.maxVolumePerDay ?? -1);
+      else if (sortKey === "estimatedDailyProfit")
+        cmp = (a.estimatedDailyProfit ?? -Infinity) - (b.estimatedDailyProfit ?? -Infinity);
       return sortDesc ? -cmp : cmp;
     });
     return copy;
@@ -67,6 +78,8 @@ export default function RankingTable({
     { key: "marginPct", label: "Marge %", align: "text-right", width: "w-20" },
     { key: "silverPerFocus", label: "Argent/Focus", align: "text-right", width: "w-24" },
     { key: "saleRate", label: "Ventes/jour", align: "text-right", width: "w-24" },
+    { key: "maxVolumePerDay", label: "Volume max/jour", align: "text-right", width: "w-28" },
+    { key: "estimatedDailyProfit", label: "Gain estimé/jour", align: "text-right", width: "w-28" },
     { key: null, label: "", align: "text-right", width: "w-28" },
   ];
 
@@ -165,6 +178,16 @@ export default function RankingTable({
                   </td>
                   <td className="px-2 py-1.5 text-right text-sm text-navy-300">
                     {row.saleRate != null ? row.saleRate.toFixed(1) : "-"}
+                  </td>
+                  <td className="px-2 py-1.5 text-right text-sm text-navy-300">
+                    {row.maxVolumePerDay != null ? row.maxVolumePerDay.toLocaleString() : "-"}
+                  </td>
+                  <td
+                    className={`px-2 py-1.5 text-right text-sm font-semibold ${
+                      (row.estimatedDailyProfit ?? 0) >= 0 ? "text-green-400" : "text-red-400"
+                    }`}
+                  >
+                    {row.estimatedDailyProfit != null ? money(row.estimatedDailyProfit) : "-"}
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     <button

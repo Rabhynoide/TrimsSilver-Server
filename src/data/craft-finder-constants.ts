@@ -113,3 +113,11 @@ export const NUTRITION_COST_PER_ITEM_VALUE = 0.1125;
 // CachedMarketPrice doc) — caching all 5 enchant levels × 8 cities for 768
 // items would reproduce that same disqualifying volume.
 export const CRAFT_FINDER_CACHED_ENCHANT = 0;
+
+// Rule of thumb from community crafting guides (e.g. Nendys' "Crafting
+// Masterclass"): craft no more than ~20-30% of an item's own daily traded
+// volume, or you end up re-listing (and re-paying the 2.5% setup fee each
+// time) faster than the market actually absorbs your stock. Same kind of
+// documented approximation as TIER_LIQUIDITY_SCALE above — used only to size
+// an informational "max volume to craft per day" figure, not a hard filter.
+export const MAX_CRAFT_SHARE_OF_DAILY_VOLUME = 0.25;

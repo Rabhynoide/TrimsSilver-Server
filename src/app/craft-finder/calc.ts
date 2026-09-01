@@ -37,6 +37,7 @@
 import { craftItemId, type CraftItem, type CraftRecipe } from "../crafting/calc";
 import { resourceMarketId } from "@/data/journal-constants";
 import {
+  MAX_CRAFT_SHARE_OF_DAILY_VOLUME,
   minSaleRateForTier,
   NUTRITION_COST_PER_ITEM_VALUE,
   type CraftFinderNodeCategory,
@@ -361,6 +362,14 @@ export type FinalItemResult = {
   marginNet: number | null;
   marginPct: number | null;
   silverPerFocus: number | null;
+  // Informational, not a filter: floor(saleRate × MAX_CRAFT_SHARE_OF_DAILY_VOLUME),
+  // the daily batch size that stays within the "don't crowd out your own
+  // listings" rule of thumb — see that constant's own comment.
+  maxVolumePerDay: number | null;
+  // marginNet × maxVolumePerDay — the profit you'd realistically pocket in a
+  // day crafting up to that batch size, as opposed to marginNet which is
+  // per-unit and says nothing about how much of the market you can capture.
+  estimatedDailyProfit: number | null;
   missingPrices: string[];
 };
 
@@ -395,6 +404,10 @@ export function evaluateFinalItem(
     sellPriceNet != null && craft.missingPrices.length === 0 ? sellPriceNet - craft.craftCost : null;
   const marginPct = marginNet != null && craft.craftCost > 0 ? marginNet / craft.craftCost : null;
   const silverPerFocus = marginNet != null && focusTotal > 0 ? marginNet / focusTotal : null;
+  const maxVolumePerDay =
+    output.avgAmount != null ? Math.floor(output.avgAmount * MAX_CRAFT_SHARE_OF_DAILY_VOLUME) : null;
+  const estimatedDailyProfit =
+    marginNet != null && maxVolumePerDay != null ? marginNet * maxVolumePerDay : null;
 
   return {
     uniqueName: item.uniqueName,
@@ -409,6 +422,8 @@ export function evaluateFinalItem(
     marginNet,
     marginPct,
     silverPerFocus,
+    maxVolumePerDay,
+    estimatedDailyProfit,
     missingPrices: craft.missingPrices.length > 0 ? craft.missingPrices : sellPriceNet == null ? [outputMarketId] : [],
   };
 }

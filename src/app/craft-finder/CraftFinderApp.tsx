@@ -432,7 +432,9 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
           {(setupFeeRateFor(config.premium) * 100).toFixed(2)}% (selon le statut Premium), appliqués au
           meilleur prix de vente parmi les 8 villes. L&apos;achat des matières compare aussi les 8 villes.
           Transport et profondeur du carnet d&apos;ordres non modélisés (v1) — voir le taux de vente pour le
-          signal de liquidité.
+          signal de liquidité. &quot;Volume max/jour&quot; = 25% des ventes/jour (règle empirique pour éviter
+          de saturer vos propres annonces et repayer les frais de placement à chaque re-listing) ; &quot;Gain
+          estimé/jour&quot; = marge unitaire × ce volume.
         </p>
 
         <details className="mt-4">
