@@ -204,12 +204,25 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
       for (const quality of config.qualities) {
         const result = evaluateFinalItem(item, recipe, quality, ctx, outputPriceOf, netSellRateOf, memo);
         if (config.onlyLiquid && result.liquidityOk === false) continue;
+        if (config.minMarginNet != null && (result.marginNet == null || result.marginNet < config.minMarginNet)) {
+          continue;
+        }
         rows.push(result);
       }
     }
     return rows;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [equipment, config.enchant, config.tierMin, config.tierMax, config.qualities, config.onlyLiquid, ctx, config.premium]);
+  }, [
+    equipment,
+    config.enchant,
+    config.tierMin,
+    config.tierMax,
+    config.qualities,
+    config.onlyLiquid,
+    config.minMarginNet,
+    ctx,
+    config.premium,
+  ]);
 
   const selectedItem = useMemo(
     () => equipment.find((i) => i.uniqueName === config.selectedUniqueName) ?? null,
@@ -343,6 +356,22 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
               onChange={(e) => setConfig((c) => ({ ...c, onlyLiquid: e.target.checked }))}
             />
             N&apos;afficher que les items liquides
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-navy-300">
+            Marge nette minimale (argent)
+            <input
+              type="number"
+              step={100}
+              placeholder="aucun filtre"
+              value={config.minMarginNet ?? ""}
+              onChange={(e) =>
+                setConfig((c) => ({
+                  ...c,
+                  minMarginNet: e.target.value === "" ? null : parseFloat(e.target.value) || 0,
+                }))
+              }
+              className="w-32 rounded border border-navy-600 bg-navy-900 px-2 py-1 text-navy-100"
+            />
           </label>
           <label className="flex items-center gap-2 text-sm text-navy-300">
             <input
@@ -501,8 +530,6 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
         </div>
       </section>
 
-      <RankingTable rows={rankedRows} nameOf={nameOf} config={config} onOpenTree={openTree} />
-
       {selectedItem && selectedRecipe ? (
         <MakeOrBuyTree
           item={selectedItem}
@@ -524,6 +551,8 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
           objet.
         </p>
       )}
+
+      <RankingTable rows={rankedRows} nameOf={nameOf} config={config} onOpenTree={openTree} />
     </main>
   );
 }

@@ -40,6 +40,11 @@ export type CraftFinderConfig = {
   tierMin: number;
   tierMax: number;
   onlyLiquid: boolean;
+  // Minimum net margin (silver) a row must clear to be shown. null = no
+  // filter — a numeric 0 would itself be a meaningful filter (hide
+  // unprofitable items), so "no filter" needs its own distinct value rather
+  // than defaulting to 0.
+  minMarginNet: number | null;
   manualPrices: Record<string, number>;
   // The item currently open in the make-or-buy tree drill-down, if any.
   selectedUniqueName: string | null;
@@ -74,6 +79,7 @@ export function defaultCraftFinderConfig(): CraftFinderConfig {
     tierMin: 1,
     tierMax: 8,
     onlyLiquid: false,
+    minMarginNet: null,
     manualPrices: {},
     selectedUniqueName: null,
     selectedEnchant: 0,
