@@ -194,7 +194,7 @@ export default function MakeOrBuyTree({
           Arbre acheter/fabriquer — {nameOf(item.uniqueName)} (enchant {recipe.enchant})
           {result.craft.citySpecialty && (
             <span
-              title={`Spécialité de ${ctx.simulationCity} : taux de retour bonifié (+15% de bonus de production)`}
+              title={`Spécialité de craft de ${ctx.simulationCity} (+15% de bonus de production, sauf si vous avez saisi un taux réel pour ce type d'objet)`}
               className="rounded bg-gold-500 px-1.5 py-0.5 text-[10px] font-semibold normal-case text-navy-950"
             >
               spécialité {ctx.simulationCity}

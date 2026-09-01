@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { CITIES } from "../market-prices/types";
 import type { CatalogItem, PriceRow } from "../market-prices/types";
 import { readJsonResponse } from "@/lib/http";
@@ -8,8 +8,11 @@ import { craftItemId, type CraftItem } from "../crafting/calc";
 import {
   CRAFT_FINDER_NODE_CATEGORIES,
   CRAFT_FINDER_CATEGORY_LABELS_FR,
+  CRAFT_FINDER_ITEM_TYPES_BY_WORKSHOP,
+  CRAFT_FINDER_ITEM_TYPE_LABELS_FR,
   defaultReturnRateForCity,
   type CraftFinderNodeCategory,
+  type CraftFinderWorkshop,
 } from "@/data/craft-finder-constants";
 import {
   evaluateFinalItem,
@@ -47,6 +50,7 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
   const [pricesLoading, setPricesLoading] = useState(false);
   const [pricesError, setPricesError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [expandedWorkshops, setExpandedWorkshops] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetch("/api/market/items")
@@ -180,17 +184,28 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
   // types.ts).
   const ctx: EvalContext = useMemo(() => {
     const cityRates = config.cityCategoryConfig[config.simulationCity];
+    const cityItemTypeRates = config.itemTypeReturnRates[config.simulationCity];
     return {
       resourceByUniqueName,
       marketOf,
       returnRateFor: (category) => cityRates?.[category]?.returnRate ?? 0,
       simulationCity: config.simulationCity,
+      itemTypeReturnRateFor: (craftingCategory) =>
+        craftingCategory ? cityItemTypeRates?.[craftingCategory] : undefined,
       nutritionFeeRateFor: (category) => cityRates?.[category]?.stationFeeSilverPer100Nutrition ?? 0,
       useFocusFor: (category) => config.useFocus[category] ?? true,
       minSaleRatePerDay: config.minSaleRatePerDay,
       maxDepth: 8,
     };
-  }, [resourceByUniqueName, marketOf, config.cityCategoryConfig, config.simulationCity, config.useFocus, config.minSaleRatePerDay]);
+  }, [
+    resourceByUniqueName,
+    marketOf,
+    config.cityCategoryConfig,
+    config.itemTypeReturnRates,
+    config.simulationCity,
+    config.useFocus,
+    config.minSaleRatePerDay,
+  ]);
 
   const rankedRows = useMemo(() => {
     const rows: FinalItemResult[] = [];
@@ -288,6 +303,29 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
 
   function toggleCategoryFocus(category: CraftFinderNodeCategory) {
     setConfig((c) => ({ ...c, useFocus: { ...c.useFocus, [category]: !c.useFocus[category] } }));
+  }
+
+  function toggleWorkshopExpanded(workshop: string) {
+    setExpandedWorkshops((prev) => {
+      const next = new Set(prev);
+      if (next.has(workshop)) next.delete(workshop);
+      else next.add(workshop);
+      return next;
+    });
+  }
+
+  // `value: null` clears the override for this item type (back to the
+  // workshop-level rate + automatic city-specialty bump) — a real number
+  // (including 0) is a genuine user-entered Return Rate, so "unset" needs
+  // its own distinct signal rather than defaulting to 0, same reasoning as
+  // minMarginPct elsewhere in this config.
+  function updateItemTypeReturnRate(craftingCategory: string, value: number | null) {
+    setConfig((c) => {
+      const cityRates = { ...(c.itemTypeReturnRates[c.simulationCity] ?? {}) };
+      if (value == null) delete cityRates[craftingCategory];
+      else cityRates[craftingCategory] = value;
+      return { ...c, itemTypeReturnRates: { ...c.itemTypeReturnRates, [c.simulationCity]: cityRates } };
+    });
   }
 
   const priceModes: PriceMode[] = ["current", "average", "manual"];
@@ -485,46 +523,94 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
               <tbody>
                 {CRAFT_FINDER_NODE_CATEGORIES.map((category) => {
                   const rates = config.cityCategoryConfig[config.simulationCity]?.[category];
+                  const itemTypes = CRAFT_FINDER_ITEM_TYPES_BY_WORKSHOP[category as CraftFinderWorkshop];
+                  const isExpanded = expandedWorkshops.has(category);
+                  const cityItemTypeRates = config.itemTypeReturnRates[config.simulationCity] ?? {};
                   return (
-                    <tr key={category} className="border-b border-navy-800">
-                      <td className="px-2 py-1.5 text-navy-300">{CRAFT_FINDER_CATEGORY_LABELS_FR[category]}</td>
-                      <td className="px-2 py-1.5">
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          step={0.1}
-                          value={Math.round((rates?.returnRate ?? 0) * 1000) / 10}
-                          onChange={(e) =>
-                            updateCityCategoryValue("returnRate", category, (parseFloat(e.target.value) || 0) / 100)
-                          }
-                          className="w-20 rounded border border-navy-600 bg-navy-900 px-1.5 py-0.5 text-navy-100"
-                        />
-                      </td>
-                      <td className="px-2 py-1.5">
-                        <input
-                          type="number"
-                          min={0}
-                          step={10}
-                          value={rates?.stationFeeSilverPer100Nutrition ?? 0}
-                          onChange={(e) =>
-                            updateCityCategoryValue(
-                              "stationFeeSilverPer100Nutrition",
-                              category,
-                              parseFloat(e.target.value) || 0,
-                            )
-                          }
-                          className="w-24 rounded border border-navy-600 bg-navy-900 px-1.5 py-0.5 text-navy-100"
-                        />
-                      </td>
-                      <td className="px-2 py-1.5">
-                        <input
-                          type="checkbox"
-                          checked={config.useFocus[category]}
-                          onChange={() => toggleCategoryFocus(category)}
-                        />
-                      </td>
-                    </tr>
+                    <Fragment key={category}>
+                      <tr className="border-b border-navy-800">
+                        <td className="px-2 py-1.5 text-navy-300">
+                          <span className="flex items-center gap-1.5">
+                            {itemTypes && (
+                              <button
+                                type="button"
+                                onClick={() => toggleWorkshopExpanded(category)}
+                                className="w-4 shrink-0 text-navy-400 hover:text-navy-100"
+                                title="Détailler par type d'arme/armure"
+                              >
+                                {isExpanded ? "▾" : "▸"}
+                              </button>
+                            )}
+                            {CRAFT_FINDER_CATEGORY_LABELS_FR[category]}
+                          </span>
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={0.1}
+                            value={Math.round((rates?.returnRate ?? 0) * 1000) / 10}
+                            onChange={(e) =>
+                              updateCityCategoryValue("returnRate", category, (parseFloat(e.target.value) || 0) / 100)
+                            }
+                            className="w-20 rounded border border-navy-600 bg-navy-900 px-1.5 py-0.5 text-navy-100"
+                          />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <input
+                            type="number"
+                            min={0}
+                            step={10}
+                            value={rates?.stationFeeSilverPer100Nutrition ?? 0}
+                            onChange={(e) =>
+                              updateCityCategoryValue(
+                                "stationFeeSilverPer100Nutrition",
+                                category,
+                                parseFloat(e.target.value) || 0,
+                              )
+                            }
+                            className="w-24 rounded border border-navy-600 bg-navy-900 px-1.5 py-0.5 text-navy-100"
+                          />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <input
+                            type="checkbox"
+                            checked={config.useFocus[category]}
+                            onChange={() => toggleCategoryFocus(category)}
+                          />
+                        </td>
+                      </tr>
+                      {isExpanded &&
+                        itemTypes?.map((itemType) => {
+                          const override = cityItemTypeRates[itemType];
+                          return (
+                            <tr key={`${category}-${itemType}`} className="border-b border-navy-800 bg-navy-900/40">
+                              <td className="py-1 pl-8 pr-2 text-xs text-navy-400">
+                                {CRAFT_FINDER_ITEM_TYPE_LABELS_FR[itemType] ?? itemType}
+                              </td>
+                              <td className="px-2 py-1">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  step={0.1}
+                                  placeholder={(Math.round((rates?.returnRate ?? 0) * 1000) / 10).toString()}
+                                  value={override != null ? Math.round(override * 1000) / 10 : ""}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    updateItemTypeReturnRate(itemType, raw === "" ? null : (parseFloat(raw) || 0) / 100);
+                                  }}
+                                  className="w-20 rounded border border-navy-700 bg-navy-950 px-1.5 py-0.5 text-navy-200"
+                                />
+                              </td>
+                              <td className="px-2 py-1 text-xs text-navy-600" colSpan={2}>
+                                {override != null ? "Valeur saisie" : "Hérite de l'atelier + spécialité de ville"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -534,7 +620,10 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
             Valeurs pour {config.simulationCity} — changez la ville de simulation ci-dessus pour éditer une
             autre ville, chacune a ses propres valeurs. Le taux de retour et l&apos;argent par 100 Nutrition se
             lisent directement en jeu (fenêtre de fabrication / survol de la station) ; le frais de station
-            réel = valeur de l&apos;objet fabriqué × 0,1125 / 100 × ce taux.
+            réel = valeur de l&apos;objet fabriqué × 0,1125 / 100 × ce taux. Cliquez sur ▸ à côté d&apos;un
+            atelier pour saisir le taux de retour réel par type d&apos;arme/armure (spé, bonus du jour, Focus
+            inclus — le seul moyen de capturer leur effet, non calculé automatiquement) ; laissez vide pour
+            revenir au taux de l&apos;atelier + bonus de spécialité de ville automatique.
           </p>
         </details>
 

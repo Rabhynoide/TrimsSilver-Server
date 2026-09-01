@@ -37,6 +37,7 @@
 import { craftItemId, type CraftItem, type CraftRecipe } from "../crafting/calc";
 import { resourceMarketId } from "@/data/journal-constants";
 import {
+  craftingSpecialtyBonusPct,
   effectiveReturnRateFor,
   MAX_CRAFT_SHARE_OF_DAILY_VOLUME,
   minSaleRateForTier,
@@ -84,6 +85,11 @@ export type EvalContext = {
   // resolve an equipment item's own Local Production Bonus item-level
   // specialty — see craft-finder-constants.ts's effectiveReturnRateFor.
   simulationCity: string;
+  // A user-entered real Return Rate for this exact weapon/armor type (e.g.
+  // "sword"), if they've filled one in — undefined means "not overridden",
+  // falls back to returnRateFor(workshop) + the automatic city-specialty
+  // bump instead. See types.ts's CraftFinderConfig.itemTypeReturnRates.
+  itemTypeReturnRateFor: (craftingCategory: string | null) => number | undefined;
   // Silver the simulation city's station charges per 100 Nutrition, for
   // this category — see this file's header comment for the formula.
   nutritionFeeRateFor: (category: CraftFinderNodeCategory) => number;
@@ -297,13 +303,16 @@ export type EquipmentTreeResult = {
   // the intuitive thing to show in a tree UI, matching the in-game recipe.
   children: ResourceChildLine[];
   missingPrices: string[];
-  // The Return Rate actually used for this item, after applying its own
-  // item-level Local Production Bonus specialty (if any) on top of the
-  // table's per-(city, workshop) base — see effectiveReturnRateFor.
+  // The Return Rate actually used for this item: the user's own
+  // itemTypeReturnRates override if they entered one, else the table's
+  // per-(city, workshop) base with the automatic item-level Local
+  // Production Bonus specialty (if any) composed on top — see
+  // evaluateEquipmentCraft and effectiveReturnRateFor.
   returnRate: number;
   // True when this exact item type is the simulation city's crafting
-  // specialty (e.g. Axe in Martlock) — surfaced so the UI can show why its
-  // Return Rate differs from the rest of its workshop.
+  // specialty (e.g. Axe in Martlock), regardless of whether returnRate
+  // above came from an override or the automatic composition — surfaced so
+  // the UI can explain why a number looks the way it does either way.
   citySpecialty: boolean;
 };
 
@@ -324,9 +333,16 @@ export function evaluateEquipmentCraft(
   memo: Map<string, ResourceTreeNode>,
 ): EquipmentTreeResult {
   const workshop = item.workshop as CraftFinderNodeCategory;
-  const baseReturnRate = ctx.returnRateFor(workshop);
-  const returnRate = effectiveReturnRateFor(baseReturnRate, ctx.simulationCity, item.craftingCategory);
-  const citySpecialty = returnRate !== baseReturnRate;
+  const itemTypeOverride = ctx.itemTypeReturnRateFor(item.craftingCategory);
+  const returnRate =
+    itemTypeOverride != null
+      ? itemTypeOverride
+      : effectiveReturnRateFor(ctx.returnRateFor(workshop), ctx.simulationCity, item.craftingCategory);
+  // Whether this exact item type is the simulation city's crafting
+  // specialty — independent of whether the Return Rate above came from a
+  // user override or the automatic composition, purely informational (so
+  // the UI can explain why a number looks the way it does either way).
+  const citySpecialty = craftingSpecialtyBonusPct(ctx.simulationCity, item.craftingCategory) > 0;
 
   // Item Value isn't stored for equipment — derived from the recipe's own
   // resources (real raw counts, not Return-Rate-adjusted net units: Item

@@ -127,7 +127,7 @@ export default function RankingTable({
                       <span className="truncate text-sm text-navy-100">{nameOf(row.uniqueName)}</span>
                       {row.craft.citySpecialty && (
                         <span
-                          title={`Spécialité de ${config.simulationCity} : taux de retour bonifié (+15% de bonus de production)`}
+                          title={`Spécialité de craft de ${config.simulationCity} (+15% de bonus de production, sauf si vous avez saisi un taux réel pour ce type d'objet)`}
                           className="shrink-0 rounded bg-gold-500 px-1 text-[10px] font-semibold text-navy-950"
                         >
                           ★ {config.simulationCity}

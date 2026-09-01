@@ -48,6 +48,17 @@ export type CraftFinderConfig = {
   enchants: number[];
   minSaleRatePerDay: number;
   cityCategoryConfig: Record<string, Record<CraftFinderNodeCategory, CityCategoryRates>>;
+  // Optional per-item-type Return Rate overrides, keyed by
+  // [city][craftingCategory] (e.g. "sword", "plate_helmet" — see
+  // craft-finder-constants.ts's CRAFT_FINDER_ITEM_TYPES_BY_WORKSHOP), one
+  // level finer than cityCategoryConfig's per-workshop rate. A missing key
+  // means "not overridden" — falls back to cityCategoryConfig's workshop
+  // rate plus the automatic city-specialty bump (see calc.ts's
+  // effectiveReturnRateFor). This is the only way to capture what a
+  // player's own spec level, an active daily production bonus, or Focus
+  // usage actually do to a *specific* weapon/armor type's Return Rate —
+  // none of those are derived automatically (see craft-finder-constants.ts).
+  itemTypeReturnRates: Record<string, Record<string, number>>;
   useFocus: Record<CraftFinderNodeCategory, boolean>;
   // Filters for the ranking table.
   tierMin: number;
@@ -101,6 +112,7 @@ export function defaultCraftFinderConfig(): CraftFinderConfig {
     enchants: [CRAFT_FINDER_CACHED_ENCHANT],
     minSaleRatePerDay: DEFAULT_MIN_SALE_RATE_PER_DAY,
     cityCategoryConfig: defaultCityCategoryConfig(),
+    itemTypeReturnRates: {},
     useFocus: truePerCategory(),
     tierMin: 1,
     tierMax: 8,

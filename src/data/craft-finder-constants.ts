@@ -30,6 +30,81 @@ export const CRAFT_FINDER_WORKSHOP_LABELS_FR: Record<CraftFinderWorkshop, string
   workbench: "Établi",
 };
 
+// Every raw @craftingcategory value that appears in crafting-catalog.json,
+// grouped by the workshop it belongs to (same grouping as
+// build-crafting-catalog.mjs's own CRAFTING_CATEGORY_TO_WORKSHOP table,
+// duplicated here for the runtime config UI rather than imported since that
+// script isn't part of the app bundle) — this is the finer weapon/armor-type
+// breakdown the city crafting specialty (CRAFTING_SPECIALTY_CITY_BY_CATEGORY
+// below) actually targets, one specific type at a time, not a whole
+// workshop. Exposed so the per-city config table can let the user enter
+// their own real observed Return Rate per item type — the only way to
+// actually capture spec level, an active daily bonus, and Focus's own +59
+// production-bonus effect, none of which this app derives on its own (see
+// this file's other comments) — instead of just the workshop-wide average.
+export const CRAFT_FINDER_ITEM_TYPES_BY_WORKSHOP: Record<CraftFinderWorkshop, string[]> = {
+  warriors_forge: [
+    "sword",
+    "axe",
+    "mace",
+    "dagger",
+    "spear",
+    "quarterstaff",
+    "hammer",
+    "knuckles",
+    "plate_helmet",
+    "plate_armor",
+    "plate_shoes",
+  ],
+  hunters_lodge: ["bow", "crossbow", "leather_helmet", "leather_armor", "leather_shoes"],
+  mages_tower: [
+    "cursestaff",
+    "firestaff",
+    "froststaff",
+    "arcanestaff",
+    "holystaff",
+    "naturestaff",
+    "cloth_helmet",
+    "cloth_armor",
+    "cloth_shoes",
+  ],
+  toolmaker: ["tools", "gatherergear"],
+  workbench: ["offhand", "cape", "bag"],
+};
+
+export const CRAFT_FINDER_ITEM_TYPE_LABELS_FR: Record<string, string> = {
+  sword: "Épées",
+  axe: "Haches",
+  mace: "Masses",
+  dagger: "Dagues",
+  spear: "Lances",
+  quarterstaff: "Bâtons de combat",
+  hammer: "Marteaux",
+  knuckles: "Gantelets de guerre",
+  plate_helmet: "Casques de plaque",
+  plate_armor: "Armures de plaque",
+  plate_shoes: "Chaussures de plaque",
+  bow: "Arcs",
+  crossbow: "Arbalètes",
+  leather_helmet: "Capuches de cuir",
+  leather_armor: "Armures de cuir",
+  leather_shoes: "Chaussures de cuir",
+  cursestaff: "Bâtons maudits",
+  firestaff: "Bâtons de feu",
+  froststaff: "Bâtons de givre",
+  arcanestaff: "Bâtons arcaniques",
+  holystaff: "Bâtons sacrés",
+  naturestaff: "Bâtons de nature",
+  cloth_helmet: "Chapeaux de tissu",
+  cloth_armor: "Robes de tissu",
+  cloth_shoes: "Chaussures de tissu",
+  tools: "Outils de récolte",
+  gatherergear: "Tenues de récolteur",
+  offhand: "Objets en main secondaire",
+  cape: "Capes",
+  bag: "Sacs",
+};
+
 // The 2 real Albion food/potion crafting buildings — Kitchen (food) and
 // Alchemist's Lab (potions), confirmed by direct inspection of
 // food-catalog.json's items (every one carries a uniform `@craftingcategory`
