@@ -26,12 +26,11 @@ export type CraftFinderConfig = {
   premium: boolean;
   priceMode: PriceMode;
   averageDays: number;
-  // Which enchant level to rank. 0 is served from the price cache; 1-4 are
+  // Which enchant levels to rank, simultaneously — each produces its own
+  // separate rows, never aggregated together (same "never aggregate"
+  // principle as quality below). 0 is served from the price cache; 1-4 are
   // live-proxied on demand (see craft-finder-constants.ts).
-  enchant: number;
-  // Ranking never aggregates qualities — this just controls which quality
-  // rows are computed/shown at once, not how they're combined.
-  qualities: number[];
+  enchants: number[];
   minSaleRatePerDay: number;
   returnRates: Record<CraftFinderNodeCategory, number>;
   stationFeeRates: Record<CraftFinderNodeCategory, number>;
@@ -40,16 +39,18 @@ export type CraftFinderConfig = {
   tierMin: number;
   tierMax: number;
   onlyLiquid: boolean;
-  // Minimum net margin (silver) a row must clear to be shown. null = no
-  // filter — a numeric 0 would itself be a meaningful filter (hide
-  // unprofitable items), so "no filter" needs its own distinct value rather
-  // than defaulting to 0.
-  minMarginNet: number | null;
+  // Minimum margin %, as a fraction (0.1 = 10%), a row must clear to be
+  // shown. null = no filter — a numeric 0 would itself be a meaningful
+  // filter (hide unprofitable items), so "no filter" needs its own distinct
+  // value rather than defaulting to 0.
+  minMarginPct: number | null;
   manualPrices: Record<string, number>;
   // The item currently open in the make-or-buy tree drill-down, if any.
+  // Quality is always 1 (see `enchants` above — this feature only ranks
+  // quality 1, matching the user's own stated scope), so there's no
+  // separate selectedQuality field to track.
   selectedUniqueName: string | null;
   selectedEnchant: number;
-  selectedQuality: number;
 };
 
 function zeroPerCategory(): Record<CraftFinderNodeCategory, number> {
@@ -70,8 +71,7 @@ export function defaultCraftFinderConfig(): CraftFinderConfig {
     premium: true,
     priceMode: "current",
     averageDays: 7,
-    enchant: CRAFT_FINDER_CACHED_ENCHANT,
-    qualities: [1, 2, 3, 4, 5],
+    enchants: [CRAFT_FINDER_CACHED_ENCHANT],
     minSaleRatePerDay: DEFAULT_MIN_SALE_RATE_PER_DAY,
     returnRates: zeroPerCategory(),
     stationFeeRates: zeroPerCategory(),
@@ -79,11 +79,10 @@ export function defaultCraftFinderConfig(): CraftFinderConfig {
     tierMin: 1,
     tierMax: 8,
     onlyLiquid: false,
-    minMarginNet: null,
+    minMarginPct: null,
     manualPrices: {},
     selectedUniqueName: null,
     selectedEnchant: 0,
-    selectedQuality: 1,
   };
 }
 

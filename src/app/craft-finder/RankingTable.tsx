@@ -28,7 +28,7 @@ export default function RankingTable({
   rows: FinalItemResult[];
   nameOf: (uniqueName: string) => string;
   config: CraftFinderConfig;
-  onOpenTree: (uniqueName: string, enchant: number, quality: number) => void;
+  onOpenTree: (uniqueName: string, enchant: number) => void;
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("marginNet");
   const [sortDesc, setSortDesc] = useState(true);
@@ -60,7 +60,6 @@ export default function RankingTable({
   const headers: { key: SortKey | null; label: string; align: string; width: string }[] = [
     { key: "name", label: "Objet", align: "text-left", width: "w-64" },
     { key: "tier", label: "Tier", align: "text-center", width: "w-14" },
-    { key: null, label: "Qualité", align: "text-center", width: "w-16" },
     { key: null, label: "Ench.", align: "text-center", width: "w-14" },
     { key: null, label: "Coût de craft", align: "text-right", width: "w-28" },
     { key: null, label: "Vente nette", align: "text-right", width: "w-28" },
@@ -101,7 +100,7 @@ export default function RankingTable({
               const hasMissing = row.missingPrices.length > 0;
               return (
                 <tr
-                  key={`${row.uniqueName}|${row.enchant}|${row.quality}`}
+                  key={`${row.uniqueName}|${row.enchant}`}
                   className="divide-x divide-navy-700 border-b border-navy-800 hover:bg-navy-800/50"
                 >
                   <td className="px-2 py-1.5">
@@ -142,7 +141,6 @@ export default function RankingTable({
                   <td className="px-2 py-1.5 text-center text-sm text-navy-300">
                     {itemTierFromUniqueName(row.uniqueName)}
                   </td>
-                  <td className="px-2 py-1.5 text-center text-sm text-navy-300">{row.quality}</td>
                   <td className="px-2 py-1.5 text-center text-sm text-navy-300">{row.enchant}</td>
                   <td className="px-2 py-1.5 text-right text-sm text-navy-300">{money(row.craft.craftCost)}</td>
                   <td className="px-2 py-1.5 text-right text-sm text-navy-300">
@@ -171,7 +169,7 @@ export default function RankingTable({
                   <td className="px-2 py-1.5 text-right">
                     <button
                       type="button"
-                      onClick={() => onOpenTree(row.uniqueName, row.enchant, row.quality)}
+                      onClick={() => onOpenTree(row.uniqueName, row.enchant)}
                       className="rounded border border-navy-600 px-2 py-1 text-xs text-navy-200 hover:bg-navy-700"
                     >
                       Voir l&apos;arbre

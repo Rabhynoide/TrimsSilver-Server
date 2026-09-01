@@ -71,9 +71,10 @@ export function minSaleRateForTier(tier: number, baseRate: number): number {
 // Craft Finder's ranking always prices the whole equipment catalog, so
 // (like Farming/Journals) its item universe is worth caching in full rather
 // than live-proxying on every page load — but only at this one enchant
-// level. Enchanted variants (1-4) stay live-proxied on demand, same
-// cardinality tradeoff already documented for excluding /crafting's full
-// catalog from the cache (schema.prisma's CachedMarketPrice doc) — caching
-// all 5 enchant levels × 5 qualities × 8 cities for 768 items would
-// reproduce that same disqualifying volume.
+// level (quality is always 1, per the feature's own scope, so that
+// dimension needs no such tradeoff). Enchanted variants (1-4) stay
+// live-proxied on demand, same cardinality tradeoff already documented for
+// excluding /crafting's full catalog from the cache (schema.prisma's
+// CachedMarketPrice doc) — caching all 5 enchant levels × 8 cities for 768
+// items would reproduce that same disqualifying volume.
 export const CRAFT_FINDER_CACHED_ENCHANT = 0;

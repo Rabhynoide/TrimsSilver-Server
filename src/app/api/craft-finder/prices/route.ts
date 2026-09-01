@@ -10,17 +10,26 @@ import { getMarketPrices } from "@/lib/marketPricesService";
 type EquipmentCatalogRow = { uniqueName: string; recipes: { enchant: number }[] };
 type ResourceCatalogRow = { uniqueName: string };
 
+function parseEnchants(raw: string | null): number[] {
+  const values = (raw ?? "0")
+    .split(",")
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => Number.isInteger(n) && n >= 0 && n <= 4);
+  return values.length > 0 ? [...new Set(values)] : [0];
+}
+
 // Craft Finder's ranking prices its ENTIRE catalog on every refresh (768
-// equipment ids at one enchant level + ~230 resource-layer ids, all 8
-// cities, qualities 1-5) — far more than any other feature. Routing that
-// through /api/market/prices from the browser needs ~19-23 chunked
-// requests even at a conservative per-request size, and that request
-// *count* itself turned out to be the real problem: reproduced live against
-// production that a burst of that many browser-facing requests in a few
-// seconds escalates through BunkerWeb's anti-abuse handling (403, then 429,
-// then 502, worsening across the burst) — not a per-request content or
-// length issue, which earlier diagnosis had wrongly pinned it on (see
-// PROJECT_STATUS.md for the full story, including the diagnostic dead end).
+// equipment ids across every selected enchant level + ~230 resource-layer
+// ids, all 8 cities) — far more than any other feature. Only quality 1 is
+// ranked (per the feature's own scope), which keeps this to one dimension
+// instead of the five Market Prices/Crafting need. Routing this through
+// /api/market/prices from the browser would need many chunked requests, and
+// that request *count* itself turned out to be the real problem: reproduced
+// live against production that a burst of that many browser-facing
+// requests in a few seconds escalates through BunkerWeb's anti-abuse
+// handling (403, then 429, then 502, worsening across the burst) — not a
+// per-request content or length issue, which earlier diagnosis had wrongly
+// pinned it on (see PROJECT_STATUS.md for the full story).
 //
 // The fix: collapse this into ONE browser-facing request. This route
 // computes Craft Finder's item universe itself (mirroring the same closure
@@ -30,16 +39,17 @@ type ResourceCatalogRow = { uniqueName: string };
 // client-facing WAF at all, only this one small request does.
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
-  const enchantParam = parseInt(params.get("enchant") ?? "0", 10);
-  const enchant = Number.isInteger(enchantParam) && enchantParam >= 0 && enchantParam <= 4 ? enchantParam : 0;
+  const enchants = parseEnchants(params.get("enchants") ?? params.get("enchant"));
 
   const averageDaysParam = params.get("averageDays");
   const averageDays = averageDaysParam ? parseInt(averageDaysParam, 10) : null;
 
-  const equipmentIds: string[] = [];
+  const equipmentIds = new Set<string>();
   for (const item of craftingCatalog as unknown as EquipmentCatalogRow[]) {
-    if (item.recipes.some((r) => r.enchant === enchant)) {
-      equipmentIds.push(craftItemId(item.uniqueName, enchant));
+    for (const enchant of enchants) {
+      if (item.recipes.some((r) => r.enchant === enchant)) {
+        equipmentIds.add(craftItemId(item.uniqueName, enchant));
+      }
     }
   }
   const resourceIds = (resourceCatalog as unknown as ResourceCatalogRow[]).map((r) =>
@@ -51,7 +61,7 @@ export async function GET(request: NextRequest) {
       region: CRAFT_FINDER_REGION,
       items: [...equipmentIds, ...resourceIds],
       locations: [...CITIES],
-      qualities: [1, 2, 3, 4, 5],
+      qualities: [1],
       averageDays: averageDays && averageDays > 0 ? averageDays : null,
     });
     return NextResponse.json({ prices });

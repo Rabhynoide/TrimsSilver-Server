@@ -9,7 +9,8 @@
 //    equipment, where the same base uniqueName is shared across enchants 0-4
 //    via separate recipe entries; so only equipment needs an explicit
 //    (uniqueName, enchant) pair, resources don't).
-// 2. A liquidity/sale-rate signal per (item, quality) combination.
+// 2. A liquidity/sale-rate signal per item (quality 1 only — Craft Finder's
+//    own scope, per the user).
 //
 // Reuses crafting/calc.ts's CraftItem/CraftRecipe types and craftItemId()
 // for the equipment layer (crafting-catalog.json) as-is, and
@@ -305,7 +306,6 @@ export function totalFocusCost(craft: EquipmentTreeResult, ctx: EvalContext): nu
 export type FinalItemResult = {
   uniqueName: string;
   enchant: number;
-  quality: number;
   craft: EquipmentTreeResult;
   focusTotal: number;
   sellPriceGross: number | null;
@@ -319,22 +319,15 @@ export type FinalItemResult = {
   missingPrices: string[];
 };
 
-export type OutputPriceLookup = (
-  uniqueName: string,
-  enchant: number,
-  quality: number,
-) => MarketSnapshot;
+export type OutputPriceLookup = (uniqueName: string, enchant: number) => MarketSnapshot;
 
-// Never aggregates across quality/enchant — one call = one (item, enchant,
-// quality) triple, matching the "never aggregate" requirement: the recipe
-// cost is quality-independent (crafting doesn't let you choose an output
-// quality, only influences the roll's odds) but the achievable sell price
-// and its liquidity are quality-specific, so those two must combine at this
-// level, not be baked into the recursive tree above.
+// Never aggregates across enchant — one call = one (item, enchant) pair.
+// Quality is always 1 (Craft Finder's own scope, per the user — equipment
+// quality 2-5 is out of scope entirely, not just deprioritized), so it's no
+// longer a dimension this function takes or returns.
 export function evaluateFinalItem(
   item: CraftItem,
   recipe: CraftRecipe,
-  quality: number,
   ctx: EvalContext,
   outputPriceOf: OutputPriceLookup,
   netSellRateOf: (grossPrice: number) => number,
@@ -343,7 +336,7 @@ export function evaluateFinalItem(
   const craft = evaluateEquipmentCraft(item, recipe, ctx, memo);
   const focusTotal = totalFocusCost(craft, ctx);
 
-  const output = outputPriceOf(item.uniqueName, recipe.enchant, quality);
+  const output = outputPriceOf(item.uniqueName, recipe.enchant);
   const sellPriceGross = output.price;
   const sellPriceNet = sellPriceGross != null ? netSellRateOf(sellPriceGross) : null;
 
@@ -361,7 +354,6 @@ export function evaluateFinalItem(
   return {
     uniqueName: item.uniqueName,
     enchant: recipe.enchant,
-    quality,
     craft,
     focusTotal,
     sellPriceGross,

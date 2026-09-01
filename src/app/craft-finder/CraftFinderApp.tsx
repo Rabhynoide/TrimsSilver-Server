@@ -93,7 +93,7 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
     setPricesLoading(true);
     setPricesError(null);
     try {
-      const url = `/api/craft-finder/prices?enchant=${config.enchant}&averageDays=${config.averageDays}`;
+      const url = `/api/craft-finder/prices?enchants=${config.enchants.join(",")}&averageDays=${config.averageDays}`;
       const res = await fetch(url);
       const data = await readJsonResponse<{ prices?: PriceRow[]; error?: string; detail?: string }>(res);
       if (!res.ok) throw new Error(data.detail ?? data.error ?? `Échec de la requête (${res.status})`);
@@ -106,7 +106,7 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
     }
   }
 
-  const fetchKey = `${config.enchant}|${config.averageDays}`;
+  const fetchKey = `${config.enchants.join(",")}|${config.averageDays}`;
   const lastFetchedKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (lastFetchedKeyRef.current === fetchKey) return;
@@ -142,17 +142,14 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
   // whichever is best (cheapest to buy, priciest to sell) — see types.ts:
   // only crafting/refining fees stay tied to the selected simulation city,
   // and this feature's own scope deliberately doesn't model transport cost
-  // between the buy/sell/craft cities.
-  function bestAcrossCities(
-    marketId: string,
-    quality: number,
-    pick: (a: PriceRow, b: PriceRow) => PriceRow,
-  ): MarketSnapshot {
+  // between the buy/sell/craft cities. Quality is always 1 — Craft Finder's
+  // own scope, per the user.
+  function bestAcrossCities(marketId: string, pick: (a: PriceRow, b: PriceRow) => PriceRow): MarketSnapshot {
     if (config.priceMode === "manual") {
       const manual = config.manualPrices[marketId];
       return { price: manual ?? null, priceAge: null, avgAmount: null };
     }
-    const rows = (priceRowsById.get(marketId) ?? []).filter((r) => r.quality === quality && r.sellPriceMin > 0);
+    const rows = (priceRowsById.get(marketId) ?? []).filter((r) => r.quality === 1 && r.sellPriceMin > 0);
     if (rows.length === 0) return { price: null, priceAge: null, avgAmount: null };
     const best = rows.reduce(pick);
     const price = config.priceMode === "average" ? best.avgPrice ?? null : best.sellPriceMin;
@@ -161,15 +158,13 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
 
   const marketOf = useMemo(() => {
     return (marketId: string): MarketSnapshot =>
-      bestAcrossCities(marketId, 1, (a, b) => (a.sellPriceMin <= b.sellPriceMin ? a : b));
+      bestAcrossCities(marketId, (a, b) => (a.sellPriceMin <= b.sellPriceMin ? a : b));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [priceRowsById, config.priceMode, config.manualPrices]);
 
   const outputPriceOf = useMemo(() => {
-    return (uniqueName: string, enchant: number, quality: number): MarketSnapshot =>
-      bestAcrossCities(craftItemId(uniqueName, enchant), quality, (a, b) =>
-        a.sellPriceMin >= b.sellPriceMin ? a : b,
-      );
+    return (uniqueName: string, enchant: number): MarketSnapshot =>
+      bestAcrossCities(craftItemId(uniqueName, enchant), (a, b) => (a.sellPriceMin >= b.sellPriceMin ? a : b));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [priceRowsById, config.priceMode, config.manualPrices]);
 
@@ -197,14 +192,14 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
     // calc.ts's evaluateEquipmentCraft doc.
     const memo = new Map<string, ResourceTreeNode>();
     for (const item of equipment) {
-      const recipe = item.recipes.find((r) => r.enchant === config.enchant);
-      if (!recipe) continue;
       const tier = itemTierFromUniqueName(item.uniqueName);
       if (tier < config.tierMin || tier > config.tierMax) continue;
-      for (const quality of config.qualities) {
-        const result = evaluateFinalItem(item, recipe, quality, ctx, outputPriceOf, netSellRateOf, memo);
+      for (const enchant of config.enchants) {
+        const recipe = item.recipes.find((r) => r.enchant === enchant);
+        if (!recipe) continue;
+        const result = evaluateFinalItem(item, recipe, ctx, outputPriceOf, netSellRateOf, memo);
         if (config.onlyLiquid && result.liquidityOk === false) continue;
-        if (config.minMarginNet != null && (result.marginNet == null || result.marginNet < config.minMarginNet)) {
+        if (config.minMarginPct != null && (result.marginPct == null || result.marginPct < config.minMarginPct)) {
           continue;
         }
         rows.push(result);
@@ -214,12 +209,11 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     equipment,
-    config.enchant,
+    config.enchants,
     config.tierMin,
     config.tierMax,
-    config.qualities,
     config.onlyLiquid,
-    config.minMarginNet,
+    config.minMarginPct,
     ctx,
     config.premium,
   ]);
@@ -245,8 +239,8 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
     setConfig((c) => ({ ...c, manualPrices: { ...c.manualPrices, [marketId]: value } }));
   }
 
-  function openTree(uniqueName: string, enchant: number, quality: number) {
-    setConfig((c) => ({ ...c, selectedUniqueName: uniqueName, selectedEnchant: enchant, selectedQuality: quality }));
+  function openTree(uniqueName: string, enchant: number) {
+    setConfig((c) => ({ ...c, selectedUniqueName: uniqueName, selectedEnchant: enchant }));
   }
 
   function updateCategoryValue(
@@ -295,20 +289,28 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Enchantement
-            <select
-              value={config.enchant}
-              onChange={(e) => setConfig((c) => ({ ...c, enchant: parseInt(e.target.value, 10) }))}
-              className="rounded border border-navy-600 bg-navy-900 px-2 py-1 text-navy-100"
-            >
+          <fieldset className="flex flex-col gap-1 text-sm text-navy-300">
+            <legend>Enchantements inclus</legend>
+            <div className="flex gap-3">
               {[0, 1, 2, 3, 4].map((e) => (
-                <option key={e} value={e}>
-                  {e === 0 ? "0 (mis en cache)" : `${e} (prix en direct)`}
-                </option>
+                <label key={e} className="flex items-center gap-1" title={e === 0 ? "Mis en cache" : "Prix en direct"}>
+                  <input
+                    type="checkbox"
+                    checked={config.enchants.includes(e)}
+                    onChange={(ev) =>
+                      setConfig((c) => ({
+                        ...c,
+                        enchants: ev.target.checked
+                          ? [...c.enchants, e].sort()
+                          : c.enchants.filter((x) => x !== e),
+                      }))
+                    }
+                  />
+                  {e}
+                </label>
               ))}
-            </select>
-          </label>
+            </div>
+          </fieldset>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
             Mode de prix
             <select
@@ -358,19 +360,19 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
             N&apos;afficher que les items liquides
           </label>
           <label className="flex flex-col gap-1 text-sm text-navy-300">
-            Marge nette minimale (argent)
+            Marge % minimale
             <input
               type="number"
-              step={100}
+              step={1}
               placeholder="aucun filtre"
-              value={config.minMarginNet ?? ""}
+              value={config.minMarginPct != null ? Math.round(config.minMarginPct * 1000) / 10 : ""}
               onChange={(e) =>
                 setConfig((c) => ({
                   ...c,
-                  minMarginNet: e.target.value === "" ? null : parseFloat(e.target.value) || 0,
+                  minMarginPct: e.target.value === "" ? null : (parseFloat(e.target.value) || 0) / 100,
                 }))
               }
-              className="w-32 rounded border border-navy-600 bg-navy-900 px-2 py-1 text-navy-100"
+              className="w-24 rounded border border-navy-600 bg-navy-900 px-2 py-1 text-navy-100"
             />
           </label>
           <label className="flex items-center gap-2 text-sm text-navy-300">
@@ -406,28 +408,6 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
               className="w-16 rounded border border-navy-600 bg-navy-900 px-2 py-1 text-navy-100"
             />
           </label>
-          <fieldset className="flex flex-col gap-1 text-sm text-navy-300">
-            <legend>Qualités incluses</legend>
-            <div className="flex gap-3">
-              {[1, 2, 3, 4, 5].map((q) => (
-                <label key={q} className="flex items-center gap-1">
-                  <input
-                    type="checkbox"
-                    checked={config.qualities.includes(q)}
-                    onChange={(e) =>
-                      setConfig((c) => ({
-                        ...c,
-                        qualities: e.target.checked
-                          ? [...c.qualities, q].sort()
-                          : c.qualities.filter((x) => x !== q),
-                      }))
-                    }
-                  />
-                  {q}
-                </label>
-              ))}
-            </div>
-          </fieldset>
         </div>
 
         <p className="mt-3 text-xs text-navy-400">
@@ -534,7 +514,6 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
         <MakeOrBuyTree
           item={selectedItem}
           recipe={selectedRecipe}
-          quality={config.selectedQuality}
           ctx={ctx}
           nameOf={nameOf}
           outputPriceOf={outputPriceOf}

@@ -149,7 +149,6 @@ function ResourceNodeRow({
 export default function MakeOrBuyTree({
   item,
   recipe,
-  quality,
   ctx,
   nameOf,
   outputPriceOf,
@@ -162,7 +161,6 @@ export default function MakeOrBuyTree({
 }: {
   item: CraftItem;
   recipe: CraftRecipe;
-  quality: number;
   ctx: EvalContext;
   nameOf: (uniqueName: string) => string;
   outputPriceOf: OutputPriceLookup;
@@ -176,8 +174,8 @@ export default function MakeOrBuyTree({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const result = useMemo(
-    () => evaluateFinalItem(item, recipe, quality, ctx, outputPriceOf, netSellRateOf, memo),
-    [item, recipe, quality, ctx, outputPriceOf, netSellRateOf, memo],
+    () => evaluateFinalItem(item, recipe, ctx, outputPriceOf, netSellRateOf, memo),
+    [item, recipe, ctx, outputPriceOf, netSellRateOf, memo],
   );
 
   function toggle(key: string) {
@@ -193,7 +191,7 @@ export default function MakeOrBuyTree({
     <section className="rounded-lg border border-navy-700 bg-navy-850 p-4">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-navy-400">
-          Arbre acheter/fabriquer — {nameOf(item.uniqueName)} (qualité {quality}, enchant {recipe.enchant})
+          Arbre acheter/fabriquer — {nameOf(item.uniqueName)} (enchant {recipe.enchant})
         </h2>
         <button type="button" onClick={onClose} className="text-sm text-navy-400 hover:text-navy-100">
           Fermer ✕

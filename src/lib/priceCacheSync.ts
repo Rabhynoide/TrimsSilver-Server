@@ -94,9 +94,14 @@ function craftFinderResourceItemIds(): Set<string> {
   return names;
 }
 
-// Only the enchant-0 equipment universe is cached in full (see
+// Only the enchant-0 equipment universe is cached (see
 // craft-finder-constants.ts for why) — enchant 1-4 stay live-proxied, same
 // tradeoff already accepted for excluding /crafting's whole catalog.
+// Ranking only ever considers quality 1 (Craft Finder's own scope, per the
+// user), so unlike this cache's original design there's no separate
+// higher-cardinality quality dimension to isolate onto its own slower sync
+// cycle anymore — quality 1 alone is the same order of magnitude as
+// Farming/Journals' own universe, so it joins their cycle below.
 function craftFinderEquipmentItemIds(): Set<string> {
   const names = new Set<string>();
   for (const item of craftingCatalog as unknown as EquipmentCatalogRow[]) {
@@ -110,27 +115,21 @@ function craftFinderEquipmentItemIds(): Set<string> {
 // The cache's whole universe — see schema.prisma's CachedMarketPrice doc for
 // why Crafting's own selection-driven queries and Market Prices' ad-hoc
 // picks are excluded. Computed once at module load (these catalogs are
-// static, committed JSON, not live data). Split into two quality
-// dimensions: Farming/Journals/Craft Finder's resource layer never vary
-// quality (always 1), but Craft Finder's equipment layer does (1-5) — same
-// distinction /api/market/prices already makes per request, just baked into
-// what this sync job asks AODP for.
-export function priceCacheItemIdsQuality1(): string[] {
-  return [...new Set([...farmingItemIds(), ...journalItemIds(), ...craftFinderResourceItemIds()])];
-}
-
-export function priceCacheItemIdsAllQualities(): string[] {
-  return [...craftFinderEquipmentItemIds()];
+// static, committed JSON, not live data). Everything here is quality 1 only
+// — Farming/Journals' items never vary quality, and Craft Finder ranks
+// quality 1 exclusively.
+export function priceCacheItemIds(): string[] {
+  return [
+    ...new Set([
+      ...farmingItemIds(),
+      ...journalItemIds(),
+      ...craftFinderResourceItemIds(),
+      ...craftFinderEquipmentItemIds(),
+    ]),
+  ];
 }
 
 const SYNC_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
-// Craft Finder's equipment universe (768 items × 5 qualities × 8 cities) is
-// several times larger than Farming/Journals' combined universe — synced
-// less often so one sync job's AODP request volume stays proportionate,
-// consistent with the BunkerWeb incident documented in PROJECT_STATUS.md
-// (a large query string alone tripped the reverse proxy's abuse detection
-// before AODP's own rate limit ever mattered).
-const EQUIPMENT_SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const UPSERT_CONCURRENCY = 25;
 
 function upsertData(region: AodpRegion, row: AodpPriceRow) {
@@ -150,9 +149,9 @@ function upsertData(region: AodpRegion, row: AodpPriceRow) {
   };
 }
 
-async function syncRegion(region: AodpRegion, items: string[], qualities: number[]): Promise<void> {
+async function syncRegion(region: AodpRegion, items: string[]): Promise<void> {
   if (items.length === 0) return;
-  const rows = await fetchCurrentPrices(region, items, ALL_CITIES, qualities);
+  const rows = await fetchCurrentPrices(region, items, ALL_CITIES, [1]);
 
   for (let i = 0; i < rows.length; i += UPSERT_CONCURRENCY) {
     const batch = rows.slice(i, i + UPSERT_CONCURRENCY);
@@ -180,18 +179,17 @@ let syncing = false;
 
 // Exported for a future manual "Refresh cache now" admin action, if ever
 // wanted — not currently wired to anything but startPriceCacheSync's own
-// interval below. Farmables/journal materials/Craft Finder's resource layer
-// are always quality 1 (see schema.prisma's doc) — no need to ask AODP for
-// qualities 2-5 for this universe.
+// interval below. Every item in this universe is quality 1 only (see
+// schema.prisma's doc) — no need to ask AODP for qualities 2-5.
 export async function syncPriceCacheOnce(): Promise<void> {
   if (syncing) return; // a run overlapping the next interval tick shouldn't stack
   syncing = true;
   const startedAt = Date.now();
   try {
-    const items = priceCacheItemIdsQuality1();
+    const items = priceCacheItemIds();
     for (const region of AODP_REGIONS) {
       try {
-        await syncRegion(region, items, [1]);
+        await syncRegion(region, items);
       } catch (err) {
         console.error(`Price cache sync failed for ${region}`, err);
       }
@@ -201,31 +199,6 @@ export async function syncPriceCacheOnce(): Promise<void> {
     );
   } finally {
     syncing = false;
-  }
-}
-
-let syncingEquipment = false;
-
-// Craft Finder's equipment layer, separate cadence and quality range from
-// the job above — see EQUIPMENT_SYNC_INTERVAL_MS for why.
-export async function syncEquipmentPriceCacheOnce(): Promise<void> {
-  if (syncingEquipment) return;
-  syncingEquipment = true;
-  const startedAt = Date.now();
-  try {
-    const items = priceCacheItemIdsAllQualities();
-    for (const region of AODP_REGIONS) {
-      try {
-        await syncRegion(region, items, [1, 2, 3, 4, 5]);
-      } catch (err) {
-        console.error(`Equipment price cache sync failed for ${region}`, err);
-      }
-    }
-    console.log(
-      `Equipment price cache sync: ${items.length} items × 5 qualities × ${AODP_REGIONS.length} regions in ${Date.now() - startedAt}ms`,
-    );
-  } finally {
-    syncingEquipment = false;
   }
 }
 
@@ -249,11 +222,4 @@ export function startPriceCacheSync(): void {
   setInterval(() => {
     syncPriceCacheOnce().catch((err) => console.error("Price cache sync failed", err));
   }, SYNC_INTERVAL_MS);
-
-  syncEquipmentPriceCacheOnce().catch((err) =>
-    console.error("Initial equipment price cache sync failed", err),
-  );
-  setInterval(() => {
-    syncEquipmentPriceCacheOnce().catch((err) => console.error("Equipment price cache sync failed", err));
-  }, EQUIPMENT_SYNC_INTERVAL_MS);
 }
