@@ -3,9 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CITIES } from "../market-prices/types";
 import type { CatalogItem, PriceRow } from "../market-prices/types";
-import { fetchMarketPrices } from "@/lib/marketPricesClient";
+import { readJsonResponse } from "@/lib/http";
 import { craftItemId, type CraftItem } from "../crafting/calc";
-import { resourceMarketId } from "@/data/journal-constants";
 import {
   CRAFT_FINDER_NODE_CATEGORIES,
   CRAFT_FINDER_CATEGORY_LABELS_FR,
@@ -21,7 +20,6 @@ import {
   type ResourceTreeNode,
 } from "./calc";
 import {
-  CRAFT_FINDER_REGION,
   defaultCraftFinderConfig,
   salesTaxRateFor,
   setupFeeRateFor,
@@ -80,63 +78,26 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
     [resources],
   );
 
-  // Every resource-layer item reachable from the selected enchant's
-  // equipment recipes, recursively down to raw leaves — the exact item set
-  // the recursive tree can ever need pricing for at this enchant.
-  const resourceUniverse = useMemo(() => {
-    const needed = new Set<string>();
-    function visit(name: string) {
-      if (needed.has(name)) return;
-      needed.add(name);
-      const entry = resourceByUniqueName.get(name);
-      if (entry) {
-        for (const option of entry.options) {
-          for (const r of option.resources) visit(r.uniqueName);
-        }
-      }
-    }
-    for (const item of equipment) {
-      const recipe = item.recipes.find((r) => r.enchant === config.enchant);
-      if (recipe) for (const r of recipe.resources) visit(r.uniqueName);
-    }
-    return needed;
-  }, [equipment, resourceByUniqueName, config.enchant]);
-
-  const equipmentIds = useMemo(() => {
-    const ids: string[] = [];
-    for (const item of equipment) {
-      if (item.recipes.some((r) => r.enchant === config.enchant)) {
-        ids.push(craftItemId(item.uniqueName, config.enchant));
-      }
-    }
-    return ids;
-  }, [equipment, config.enchant]);
-
-  const resourceIds = useMemo(() => [...resourceUniverse].map(resourceMarketId), [resourceUniverse]);
-
+  // Fetches Craft Finder's entire price universe (equipment at the selected
+  // enchant + the whole resource-refining catalog) in ONE request via
+  // /api/craft-finder/prices, which computes that item list itself
+  // server-side. Deliberately NOT the chunked /api/market/prices +
+  // fetchMarketPrices() pattern every other feature uses — reproduced live
+  // against production that Craft Finder's ~19-23 chunked browser requests
+  // per refresh (needed for a catalog this size) escalate through
+  // BunkerWeb's anti-abuse handling (403 → 429 → 502, worsening across the
+  // burst) purely from request *count*, regardless of each request's own
+  // content or size. See src/app/api/craft-finder/prices/route.ts and
+  // PROJECT_STATUS.md for the full diagnosis.
   async function fetchPrices() {
-    if (equipmentIds.length === 0 && resourceIds.length === 0) return;
     setPricesLoading(true);
     setPricesError(null);
     try {
-      // Always request averages — unlike /crafting (no liquidity concept),
-      // Craft Finder's sale-rate/liquidity signal (avgAmount) must be
-      // available regardless of which price mode is used to value the
-      // buy/sell prices themselves, so this can't be conditional on
-      // priceMode === "average" the way /crafting's own averageDays is.
-      const results = await fetchMarketPrices({
-        items: [...equipmentIds, ...resourceIds],
-        locations: [...CITIES],
-        qualities: "1,2,3,4,5",
-        region: CRAFT_FINDER_REGION,
-        averageDays: config.averageDays,
-        // Smaller chunks reduce (but don't guarantee, see
-        // marketPricesClient.ts's own comment) how often a chunk trips
-        // BunkerWeb's content-based WAF block — the automatic split-on-403
-        // retry there is what actually guarantees correctness either way.
-        maxUrlLength: 1200,
-      });
-      setPrices(results);
+      const url = `/api/craft-finder/prices?enchant=${config.enchant}&averageDays=${config.averageDays}`;
+      const res = await fetch(url);
+      const data = await readJsonResponse<{ prices?: PriceRow[]; error?: string; detail?: string }>(res);
+      if (!res.ok) throw new Error(data.detail ?? data.error ?? `Échec de la requête (${res.status})`);
+      setPrices(data.prices ?? []);
     } catch (err) {
       setPricesError(err instanceof Error ? err.message : "Erreur réseau");
       setPrices([]);
@@ -145,15 +106,14 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
     }
   }
 
-  const fetchKey = `${config.enchant}|${config.priceMode}|${config.averageDays}|${equipmentIds.length}|${resourceIds.length}`;
+  const fetchKey = `${config.enchant}|${config.averageDays}`;
   const lastFetchedKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (equipmentIds.length === 0 && resourceIds.length === 0) return;
     if (lastFetchedKeyRef.current === fetchKey) return;
     lastFetchedKeyRef.current = fetchKey;
     fetchPrices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchKey, equipmentIds, resourceIds]);
+  }, [fetchKey]);
 
   async function saveSettings() {
     setSaving(true);
@@ -533,7 +493,7 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
           <button
             type="button"
             onClick={fetchPrices}
-            disabled={pricesLoading || (equipmentIds.length === 0 && resourceIds.length === 0)}
+            disabled={pricesLoading}
             className="rounded bg-gold-500 px-3 py-1.5 text-sm font-medium text-navy-950 hover:bg-gold-400 disabled:opacity-50"
           >
             {pricesLoading ? "Chargement…" : "Rafraîchir les prix"}
