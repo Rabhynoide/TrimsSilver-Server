@@ -11,15 +11,30 @@ import {
 } from "./calc";
 import type { PriceMode } from "./types";
 
+// Same threshold as RankingTable's own STALE_PRICE_HOURS (kept as a local
+// duplicate rather than a shared import — this file and RankingTable.tsx
+// don't otherwise share a module). AODP prices are crowdsourced: a listing
+// only refreshes when someone's own client happens to visit that city's
+// market, so a cheap outlier order can sit reported as the current price
+// for hours after it's actually been bought out — flagging the age here
+// warns the user to double-check in-game before relying on a buy price this
+// old, exactly the gap that prompted this (a 60-silver egg listing that had
+// already sold out to 148 by the time the user checked in-game).
+const STALE_PRICE_HOURS = 12;
+
 function money(value: number): string {
   return Math.round(value).toLocaleString();
 }
 
-function ageLabel(dateStr: string | null): string {
-  if (!dateStr) return "inconnue";
+function ageHours(dateStr: string | null): number | null {
+  if (!dateStr) return null;
   const t = new Date(dateStr).getTime();
-  if (Number.isNaN(t)) return "inconnue";
-  const hours = (Date.now() - t) / (1000 * 60 * 60);
+  return Number.isNaN(t) ? null : (Date.now() - t) / (1000 * 60 * 60);
+}
+
+function ageLabel(dateStr: string | null): string {
+  const hours = ageHours(dateStr);
+  if (hours == null) return "inconnue";
   return hours < 1 ? "< 1h" : `${Math.round(hours)}h`;
 }
 
@@ -61,6 +76,8 @@ function ResourceNodeRow({
     node.buyPrice != null && node.bestCraftOption != null
       ? node.buyPrice - node.bestCraftOption.totalCost
       : null;
+  const buyHours = ageHours(node.buyPriceAge);
+  const buyIsStale = buyHours != null && buyHours >= STALE_PRICE_HOURS;
 
   return (
     <div className="flex flex-col" style={{ marginLeft: depth * 20 }}>
@@ -85,8 +102,14 @@ function ResourceNodeRow({
           {node.buyPrice != null ? (
             <>
               {money(node.buyPrice)}{" "}
-              <span title={`Fraîcheur : ${ageLabel(node.buyPriceAge)}`} className="text-navy-500">
-                ({ageLabel(node.buyPriceAge)})
+              <span
+                title={`Fraîcheur : ${ageLabel(node.buyPriceAge)}${
+                  buyIsStale ? " — ce prix peut être obsolète (ordre déjà vendu), vérifiez en jeu" : ""
+                }`}
+                className={buyIsStale ? "font-semibold text-red-400" : "text-navy-500"}
+              >
+                ({ageLabel(node.buyPriceAge)}
+                {buyIsStale ? " ⚠" : ""})
               </span>
               {node.buyPriceCity && (
                 <span
