@@ -42,6 +42,13 @@
 // filters below, e.g. "UNIQUE_WEAPONMASTER_ARMOR_PROTOTYPE") — these fall
 // back to "workbench" rather than being dropped, a documented approximation
 // for a handful of non-player-facing items, not a real gap.
+//
+// `craftingCategory` (added alongside `workshop`): the raw `@craftingcategory`
+// string itself, kept as-is rather than only its resolved workshop — Craft
+// Finder's per-city Local Production Bonus specialty (see
+// craft-finder-constants.ts's CRAFTING_SPECIALTY_CITY_BY_CATEGORY) targets
+// one specific weapon/armor type per city, not a whole workshop, so the
+// engine needs this exact raw value to know which items qualify.
 
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -172,6 +179,7 @@ function extractCatalog(rawItems) {
         uniqueName,
         specAchievementId: entry["@combatspecachievement"] ?? null,
         workshop: workshopFor(entry),
+        craftingCategory: entry["@craftingcategory"] ?? null,
         recipes,
       });
     }

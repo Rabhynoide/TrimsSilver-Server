@@ -454,6 +454,40 @@ Three follow-up asks, resolved via `AskUserQuestion` before implementing (this t
 - **Verified by hand**: derived Item Value for a T4 sword (16×T4_METALBAR + 8×T4_LEATHER, itemValue 16 each) = 384 — same order of magnitude and same formula shape as the wiki's own worked example (a T4 Claymore at 448, 32 units × itemvalue 14). At a plausible 300 silver/100 Nutrition station rate, that's a ~130 silver fee — small relative to the ~7,900 silver resource cost computed earlier for the same sword, a sane proportion.
 - `tsc`/lint/`next build` all clean. Not yet exercised live (needs the still-pending redeploy from the 502 fix above, then this).
 
+### Max craftable volume/day, estimated daily profit, and real per-city Return Rate defaults (same day)
+
+User linked four more YouTube crafting/economy videos; transcripts pulled via the already-installed `yt-dlp`. Three (Nendys' "Crafting Masterclass"/"Food Crafting"/"New Player Crafting") mostly confirmed existing modeling (8%/4% market tax, 2.5% setup fee, no documented spec→Return Rate formula) but surfaced one new, actionable rule of thumb: **never craft more than ~20-30% of an item's own daily traded volume**, or re-listing (and re-paying the 2.5% setup fee each time) outpaces what the market actually absorbs. The fourth (an island/laborer beginner's guide) was out of scope for Craft Finder (relevant to `/farming`/`/journals` instead, not acted on).
+
+- **`craft-finder-constants.ts`**: added `MAX_CRAFT_SHARE_OF_DAILY_VOLUME = 0.25` (midpoint of the 20-30% rule, documented as a rule-of-thumb approximation, same spirit as `TIER_LIQUIDITY_SCALE`).
+- **`craft-finder/calc.ts`**: `FinalItemResult` gained `maxVolumePerDay` (`floor(saleRate × 0.25)`) and `estimatedDailyProfit` (`marginNet × maxVolumePerDay`) — informational, not a filter; distinguishes a high-margin-but-illiquid item from one with a smaller margin but real daily payout.
+- **`RankingTable.tsx`**: two new sortable columns for the above.
+
+Separately, the user linked a Reddit post showing an image of Albion's per-city refining/crafting bonuses and asked for the config window's defaults to reflect it. Reddit itself 403s this codebase's fetcher, so the same data was independently verified against `wiki.albiononline.com/wiki/Local_Production_Bonus` and `.../wiki/Resource_return_rate` (via web search snippets — the wiki site itself still 403s directly, same longstanding gap) and cross-checked against a second independent guide site (albioncodex.com); both agree.
+
+- **Formula**: `Return Rate = 1 - 1/(1 + productionBonus/100)`. Every city with stations (all of `CITIES` except "Black Market", which has none) gets a flat **+18** baseline; each of the 5 royal cities additionally specializes in exactly one raw-resource refining category (**+40**) — Caerleon/Brecilien have none. A further **+15** crafting specialty exists everywhere too, but (see below) it's item-type-specific, not workshop-wide.
+- **`craft-finder-constants.ts`**: `defaultReturnRateForCity(city, category)` now returns a real, sourced default (base, or base+40 for the city's refining specialty) instead of a flat 0 — used by `types.ts`'s `defaultCityCategoryConfig()` for fresh configs. Station fee (silver/100 Nutrition) still defaults to 0 — a live player-set value with no derivable default, unlike Return Rate. Added a per-city "Réinitialiser les taux de retour aux valeurs de base" button in `CraftFinderApp.tsx` so already-saved configs can pick up the new defaults too (they don't get them automatically).
+
+**Follow-up same day**: the user pointed out the crafting +15 specialty is finer than workshop-level (e.g. Martlock's bonus is Axe only, not all of Warrior's Forge) and asked for that granularity to be added rather than approximated away. Re-verified the exact per-city item list (cross-checking two independent guide sources against each other, and both against every actual distinct `@craftingcategory` value found in `crafting-catalog.json` — all 30 non-null values matched to exactly one city with no gaps or overlaps, strong internal consistency for data sourced from secondary guides rather than the wiki directly):
+
+- Fort Sterling: spear, hammer, holystaff, cloth_armor, plate_helmet
+- Lymhurst: sword, bow, arcanestaff, leather_helmet, leather_shoes
+- Bridgewatch: dagger, plate_armor, crossbow, cursestaff, cloth_shoes
+- Martlock: axe, quarterstaff, plate_shoes, froststaff, **offhand** (covers every off-hand sub-type — shield/book/torch all share one `@craftingcategory`)
+- Thetford: mace, leather_armor, firestaff, naturestaff, cloth_helmet
+- Caerleon: knuckles ("War Gloves"), **tools** + **gatherergear** (together, the whole of Toolmaker)
+- Brecilien: cape, bag (NOT offhand — correcting the earlier workshop-level approximation that had wrongly given Brecilien all of Workbench)
+
+Implementation composes the item-specific +15 onto whatever Return Rate is already in the per-(city, workshop) table, in **production-bonus space** (`RR → PB`, add 15, `PB → RR`) rather than adding 15 percentage points directly to the Return Rate — mathematically the correct way to compose, since Albion sums all bonuses (base, specialty, spec level, daily bonus, Focus) into one production-bonus total before doing this same conversion once, and a table entry the user has hand-corrected for their own spec/daily-bonus may not sit exactly on a clean baseline.
+
+- **`build-crafting-catalog.mjs`**: every row now also carries the raw `craftingCategory` string (not just its resolved `workshop`) — regenerated, 768 items. T1 gear carries no `@craftingcategory` in the raw data at all (confirmed by inspection) — a documented, low-impact gap since T1 crafting profitability is negligible anyway.
+- **`crafting/calc.ts`**: `CraftItem` gained `craftingCategory: string | null` (additive, unused by `/crafting` itself).
+- **`craft-finder-constants.ts`**: added `CRAFTING_SPECIALTY_CITY_BY_CATEGORY` (the table above), `craftingSpecialtyBonusPct()`, `effectiveReturnRateFor()`, and exported `productionBonusToReturnRate`/`returnRateToProductionBonus` for the composition math.
+- **`craft-finder/calc.ts`**: `EvalContext` gained `simulationCity`; `evaluateEquipmentCraft()` now computes an effective Return Rate via `effectiveReturnRateFor()` and returns it plus a `citySpecialty: boolean` flag on `EquipmentTreeResult`.
+- **UI**: a gold "★ {city}" badge on `RankingTable` rows and a "spécialité {city}" badge + Return Rate stat on `MakeOrBuyTree` when an item matches its simulation city's specialty.
+- Verified by hand: `productionBonusToReturnRate(18)` = 15.25%, composing +15 onto that base reproduces the direct `productionBonusToReturnRate(33)` = 24.81% exactly (composition math round-trips correctly).
+
+All three changes: `tsc`/lint/`next build` clean. Not yet exercised live (same still-pending Portainer redeploy as everything else Craft Finder-related this session).
+
 ## Next steps, in the order they were being tackled
 
 1. **Decide the fate of Portfolio / Legendary marketplace / AFM EMV lookups** — client issue #5, currently disabled via `FeatureFlags.AfmIntegrationEnabled = false`. This is a product decision (retire vs. reintroduce a second Google/Firebase auth flow vs. something else), not something to solve with more code without direction.

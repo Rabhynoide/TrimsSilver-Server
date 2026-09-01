@@ -15,6 +15,15 @@ export type CraftItem = {
   // added for Craft Finder's per-city, per-workshop Return
   // Rate/station-fee config; unused by this page's own calc.
   workshop: string;
+  // The raw @craftingcategory string (e.g. "sword", "plate_helmet"), null
+  // for the handful of items that don't carry one (all T1 gear, confirmed
+  // by inspecting the raw data — negligible since T1 crafting profitability
+  // is negligible anyway). Added for Craft Finder's per-city Local
+  // Production Bonus item-level specialty (see craft-finder-constants.ts's
+  // CRAFTING_SPECIALTY_CITY_BY_CATEGORY) — finer than `workshop` above,
+  // which only says which building, not which specific item type within
+  // it. Unused by this page's own calc.
+  craftingCategory: string | null;
   recipes: CraftRecipe[];
 };
 

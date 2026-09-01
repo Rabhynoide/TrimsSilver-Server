@@ -125,6 +125,14 @@ export default function RankingTable({
                         className="h-7 w-7 shrink-0"
                       />
                       <span className="truncate text-sm text-navy-100">{nameOf(row.uniqueName)}</span>
+                      {row.craft.citySpecialty && (
+                        <span
+                          title={`Spécialité de ${config.simulationCity} : taux de retour bonifié (+15% de bonus de production)`}
+                          className="shrink-0 rounded bg-gold-500 px-1 text-[10px] font-semibold text-navy-950"
+                        >
+                          ★ {config.simulationCity}
+                        </span>
+                      )}
                       {hasMissing && (
                         <span
                           title={`Prix manquants : ${row.missingPrices.join(", ")}`}

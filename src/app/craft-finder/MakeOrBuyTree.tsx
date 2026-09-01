@@ -190,18 +190,33 @@ export default function MakeOrBuyTree({
   return (
     <section className="rounded-lg border border-navy-700 bg-navy-850 p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-navy-400">
+        <h2 className="flex flex-wrap items-center gap-2 text-sm font-semibold uppercase tracking-wide text-navy-400">
           Arbre acheter/fabriquer — {nameOf(item.uniqueName)} (enchant {recipe.enchant})
+          {result.craft.citySpecialty && (
+            <span
+              title={`Spécialité de ${ctx.simulationCity} : taux de retour bonifié (+15% de bonus de production)`}
+              className="rounded bg-gold-500 px-1.5 py-0.5 text-[10px] font-semibold normal-case text-navy-950"
+            >
+              spécialité {ctx.simulationCity}
+            </span>
+          )}
         </h2>
         <button type="button" onClick={onClose} className="text-sm text-navy-400 hover:text-navy-100">
           Fermer ✕
         </button>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-3 rounded border border-navy-700 bg-navy-900 p-3 text-sm sm:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-3 rounded border border-navy-700 bg-navy-900 p-3 text-sm sm:grid-cols-5">
         <div>
           <p className="text-xs uppercase text-navy-500">Coût de craft</p>
           <p className="text-navy-100">{money(result.craft.craftCost)}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase text-navy-500">Taux de retour</p>
+          <p className="text-navy-100">
+            {(result.craft.returnRate * 100).toFixed(1)}%
+            {result.craft.citySpecialty && <span className="ml-1 text-gold-400">★</span>}
+          </p>
         </div>
         <div>
           <p className="text-xs uppercase text-navy-500">Vente nette</p>

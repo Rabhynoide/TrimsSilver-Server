@@ -37,6 +37,7 @@
 import { craftItemId, type CraftItem, type CraftRecipe } from "../crafting/calc";
 import { resourceMarketId } from "@/data/journal-constants";
 import {
+  effectiveReturnRateFor,
   MAX_CRAFT_SHARE_OF_DAILY_VOLUME,
   minSaleRateForTier,
   NUTRITION_COST_PER_ITEM_VALUE,
@@ -73,6 +74,10 @@ export type EvalContext = {
   // tax buyers, same convention as every other calculator here).
   marketOf: (marketId: string) => MarketSnapshot;
   returnRateFor: (category: CraftFinderNodeCategory) => number;
+  // The simulation city, needed (in addition to returnRateFor above) to
+  // resolve an equipment item's own Local Production Bonus item-level
+  // specialty — see craft-finder-constants.ts's effectiveReturnRateFor.
+  simulationCity: string;
   // Silver the simulation city's station charges per 100 Nutrition, for
   // this category — see this file's header comment for the formula.
   nutritionFeeRateFor: (category: CraftFinderNodeCategory) => number;
@@ -272,6 +277,14 @@ export type EquipmentTreeResult = {
   craftCost: number;
   children: ResourceChildLine[];
   missingPrices: string[];
+  // The Return Rate actually used for this item, after applying its own
+  // item-level Local Production Bonus specialty (if any) on top of the
+  // table's per-(city, workshop) base — see effectiveReturnRateFor.
+  returnRate: number;
+  // True when this exact item type is the simulation city's crafting
+  // specialty (e.g. Axe in Martlock) — surfaced so the UI can show why its
+  // Return Rate differs from the rest of its workshop.
+  citySpecialty: boolean;
 };
 
 // The equipment layer never recurses into other equipment (Albion gear
@@ -291,7 +304,9 @@ export function evaluateEquipmentCraft(
   memo: Map<string, ResourceTreeNode>,
 ): EquipmentTreeResult {
   const workshop = item.workshop as CraftFinderNodeCategory;
-  const returnRate = ctx.returnRateFor(workshop);
+  const baseReturnRate = ctx.returnRateFor(workshop);
+  const returnRate = effectiveReturnRateFor(baseReturnRate, ctx.simulationCity, item.craftingCategory);
+  const citySpecialty = returnRate !== baseReturnRate;
 
   // Item Value isn't stored for equipment — derived from the recipe's own
   // resources (real raw counts, not Return-Rate-adjusted net units: Item
@@ -329,6 +344,8 @@ export function evaluateEquipmentCraft(
     craftCost,
     children,
     missingPrices,
+    returnRate,
+    citySpecialty,
   };
 }
 

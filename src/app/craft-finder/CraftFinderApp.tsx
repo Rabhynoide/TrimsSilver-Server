@@ -184,6 +184,7 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
       resourceByUniqueName,
       marketOf,
       returnRateFor: (category) => cityRates?.[category]?.returnRate ?? 0,
+      simulationCity: config.simulationCity,
       nutritionFeeRateFor: (category) => cityRates?.[category]?.stationFeeSilverPer100Nutrition ?? 0,
       useFocusFor: (category) => config.useFocus[category] ?? true,
       minSaleRatePerDay: config.minSaleRatePerDay,
