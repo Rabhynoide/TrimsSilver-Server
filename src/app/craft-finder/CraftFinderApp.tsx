@@ -119,13 +119,17 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
     setPricesLoading(true);
     setPricesError(null);
     try {
-      const averageDays = config.priceMode === "average" ? config.averageDays : undefined;
+      // Always request averages — unlike /crafting (no liquidity concept),
+      // Craft Finder's sale-rate/liquidity signal (avgAmount) must be
+      // available regardless of which price mode is used to value the
+      // buy/sell prices themselves, so this can't be conditional on
+      // priceMode === "average" the way /crafting's own averageDays is.
       const results = await fetchMarketPrices({
         items: [...equipmentIds, ...resourceIds],
         locations: [...CITIES],
         qualities: "1,2,3,4,5",
         region: CRAFT_FINDER_REGION,
-        averageDays,
+        averageDays: config.averageDays,
       });
       setPrices(results);
     } catch (err) {
