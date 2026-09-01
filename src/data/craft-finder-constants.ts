@@ -1,7 +1,11 @@
-// Same philosophy as crafting-constants.ts: no invented per-category Return
-// Rate/station-fee table exists in a form worth hardcoding, so these stay
-// plain, documented defaults the user tunes per city/workshop from their own
-// in-game crafting/refining window — never guessed "typical" numbers.
+// Same philosophy as crafting-constants.ts: these stay plain, documented
+// defaults the user tunes per city/workshop from their own in-game
+// crafting/refining window — never guessed "typical" numbers. The one
+// exception is Return Rate (see defaultReturnRateForCity below), which
+// Albion derives from a public, documented formula rather than a live
+// player-set value, so a real default table is possible there — unlike the
+// station's Usage Fee rate, which stays impossible to default (see
+// NUTRITION_COST_PER_ITEM_VALUE's own comment).
 
 // The 5 real Albion crafting buildings equipment is made at — confirmed
 // against the wiki's crafting-station guides and patch notes, not guessed
@@ -121,3 +125,61 @@ export const CRAFT_FINDER_CACHED_ENCHANT = 0;
 // documented approximation as TIER_LIQUIDITY_SCALE above — used only to size
 // an informational "max volume to craft per day" figure, not a hard filter.
 export const MAX_CRAFT_SHARE_OF_DAILY_VOLUME = 0.25;
+
+// Default Return Rate per (city, category), derived from Albion's own
+// "Local Production Bonus" system — confirmed against
+// wiki.albiononline.com/wiki/Local_Production_Bonus and
+// .../wiki/Resource_return_rate, cross-checked against the city bonus table
+// the user linked (reddit.com/r/albiononline city refining/crafting bonuses
+// post). Every city with actual crafting/refining stations (all 7 of
+// CITIES except "Black Market", a trading-only hub) grants a flat +18
+// production-bonus baseline to every category. On top of that:
+//
+// - Each of the 5 royal cities specializes in exactly one raw-resource
+//   refining category (+40 bonus) — Caerleon and Brecilien have none.
+// - A +15 crafting specialization also exists everywhere, but outside the
+//   two exceptions below it targets one specific weapon/armor slot inside
+//   a workshop, not the workshop's whole catalog (e.g. Martlock's crafting
+//   bonus is Axe only, not every Warrior's Forge item) — too granular for
+//   this feature's per-(city, workshop) config, so it's left out of the
+//   per-workshop default rather than overstate every royal city's numbers.
+//   The two exceptions are (near-)full-workshop matches worth including:
+//   Caerleon's crafting specialty list includes "gathering tools" in full
+//   (= all of Toolmaker), and Brecilien's includes bags + capes (2 of
+//   Workbench's 3 item types, offhands excluded).
+//
+// A production-bonus percentage converts to an actual Return Rate via
+// Albion's own formula: 1 - 1/(1 + bonus/100). None of this accounts for
+// spec levels, active daily production bonuses, or Focus (which the wiki
+// documents as a flat +59 to the production bonus on top of everything
+// above) — all per-player/per-craft choices, not per-city constants — so
+// this is a starting point the user is still expected to correct against
+// their own in-game window, same as the station fee rate below it.
+const PRODUCTION_BONUS_BASE_PCT = 18;
+const PRODUCTION_BONUS_REFINING_SPECIALTY_PCT = 40;
+const PRODUCTION_BONUS_CRAFTING_SPECIALTY_PCT = 15;
+
+function productionBonusToReturnRate(bonusPct: number): number {
+  return 1 - 1 / (1 + bonusPct / 100);
+}
+
+const REFINING_SPECIALTY_BY_CITY: Partial<Record<string, CraftFinderRefiningCategory>> = {
+  "Fort Sterling": "planks",
+  Lymhurst: "cloth",
+  Martlock: "leather",
+  Bridgewatch: "stoneblock",
+  Thetford: "metalbar",
+};
+
+const WORKSHOP_SPECIALTY_BY_CITY: Partial<Record<string, CraftFinderWorkshop>> = {
+  Caerleon: "toolmaker",
+  Brecilien: "workbench",
+};
+
+export function defaultReturnRateForCity(city: string, category: CraftFinderNodeCategory): number {
+  if (city === "Black Market") return 0;
+  let bonus = PRODUCTION_BONUS_BASE_PCT;
+  if (REFINING_SPECIALTY_BY_CITY[city] === category) bonus += PRODUCTION_BONUS_REFINING_SPECIALTY_PCT;
+  if (WORKSHOP_SPECIALTY_BY_CITY[city] === category) bonus += PRODUCTION_BONUS_CRAFTING_SPECIALTY_PCT;
+  return productionBonusToReturnRate(bonus);
+}

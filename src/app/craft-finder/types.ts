@@ -4,6 +4,7 @@ import {
   CRAFT_FINDER_CACHED_ENCHANT,
   CRAFT_FINDER_NODE_CATEGORIES,
   DEFAULT_MIN_SALE_RATE_PER_DAY,
+  defaultReturnRateForCity,
   type CraftFinderNodeCategory,
 } from "@/data/craft-finder-constants";
 
@@ -66,17 +67,22 @@ export type CraftFinderConfig = {
   selectedEnchant: number;
 };
 
-function zeroRatesPerCategory(): Record<CraftFinderNodeCategory, CityCategoryRates> {
+// Station fee has no derivable default (a live player-set value, see
+// CityCategoryRates' own comment) so it stays 0 until the user fills it in;
+// Return Rate does have one — Albion's own "Local Production Bonus" formula
+// — so new configs start from that instead of a blank 0, see
+// defaultReturnRateForCity's comment for sourcing and its known limits.
+function defaultRatesPerCategory(city: string): Record<CraftFinderNodeCategory, CityCategoryRates> {
   const out = {} as Record<CraftFinderNodeCategory, CityCategoryRates>;
   for (const category of CRAFT_FINDER_NODE_CATEGORIES) {
-    out[category] = { returnRate: 0, stationFeeSilverPer100Nutrition: 0 };
+    out[category] = { returnRate: defaultReturnRateForCity(city, category), stationFeeSilverPer100Nutrition: 0 };
   }
   return out;
 }
 
 function defaultCityCategoryConfig(): Record<string, Record<CraftFinderNodeCategory, CityCategoryRates>> {
   const out: Record<string, Record<CraftFinderNodeCategory, CityCategoryRates>> = {};
-  for (const city of CITIES) out[city] = zeroRatesPerCategory();
+  for (const city of CITIES) out[city] = defaultRatesPerCategory(city);
   return out;
 }
 

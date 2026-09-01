@@ -8,6 +8,7 @@ import { craftItemId, type CraftItem } from "../crafting/calc";
 import {
   CRAFT_FINDER_NODE_CATEGORIES,
   CRAFT_FINDER_CATEGORY_LABELS_FR,
+  defaultReturnRateForCity,
   type CraftFinderNodeCategory,
 } from "@/data/craft-finder-constants";
 import {
@@ -268,6 +269,22 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
     }));
   }
 
+  // Resets only Return Rate for the selected simulation city, back to
+  // Albion's own Local Production Bonus formula (see
+  // defaultReturnRateForCity's comment) — station fee is left untouched
+  // since, unlike Return Rate, it has no derivable default to reset to.
+  function resetReturnRatesToGameDefaults() {
+    setConfig((c) => {
+      const city = c.simulationCity;
+      const current = c.cityCategoryConfig[city];
+      const reset = {} as typeof current;
+      for (const category of CRAFT_FINDER_NODE_CATEGORIES) {
+        reset[category] = { ...current[category], returnRate: defaultReturnRateForCity(city, category) };
+      }
+      return { ...c, cityCategoryConfig: { ...c.cityCategoryConfig, [city]: reset } };
+    });
+  }
+
   function toggleCategoryFocus(category: CraftFinderNodeCategory) {
     setConfig((c) => ({ ...c, useFocus: { ...c.useFocus, [category]: !c.useFocus[category] } }));
   }
@@ -441,6 +458,19 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
           <summary className="cursor-pointer text-sm font-medium text-navy-300">
             Taux de retour / frais de station / Focus par atelier — {config.simulationCity}
           </summary>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-xs text-navy-500">
+              Valeurs de base : +18% (toutes villes) + bonus de spécialisation de {config.simulationCity} —
+              corrigez si vous avez de la spé ou des bonus de production actifs.
+            </span>
+            <button
+              type="button"
+              onClick={resetReturnRatesToGameDefaults}
+              className="shrink-0 rounded border border-navy-600 px-2 py-1 text-xs text-navy-200 hover:bg-navy-700"
+            >
+              Réinitialiser les taux de retour aux valeurs de base
+            </button>
+          </div>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[640px] table-fixed border-collapse text-sm">
               <thead>
