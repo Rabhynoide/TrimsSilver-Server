@@ -1,4 +1,6 @@
-// Regenerates src/data/farming-catalog.json from broderickhyman/ao-bin-dumps.
+// Regenerates src/data/farming-catalog.json from ao-data/ao-bin-dumps — the actively maintained
+// fork (broderickhyman/ao-bin-dumps, used previously, was archived in Jan
+// 2023 and stopped tracking patches years ago).
 // Run manually after major Albion Online game patches: npm run farming-catalog:build
 //
 // Sources three upstream files:
@@ -19,7 +21,7 @@ import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-const BASE_URL = "https://raw.githubusercontent.com/broderickhyman/ao-bin-dumps/master";
+const BASE_URL = "https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master";
 const RAW_ITEMS_URL = `${BASE_URL}/items.json`;
 const FORMATTED_ITEMS_URL = `${BASE_URL}/formatted/items.json`;
 const LOOT_URL = `${BASE_URL}/loot.json`;

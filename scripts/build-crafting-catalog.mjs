@@ -1,4 +1,6 @@
-// Regenerates src/data/crafting-catalog.json from broderickhyman/ao-bin-dumps.
+// Regenerates src/data/crafting-catalog.json from ao-data/ao-bin-dumps — the actively maintained
+// fork (broderickhyman/ao-bin-dumps, used previously, was archived in Jan
+// 2023 and stopped tracking patches years ago).
 // Run manually after major Albion Online game patches: npm run crafting-catalog:build
 //
 // Source: items.json (raw) only — no formatted/items.json needed here, since
@@ -55,7 +57,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const RAW_ITEMS_URL =
-  "https://raw.githubusercontent.com/broderickhyman/ao-bin-dumps/master/items.json";
+  "https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master/items.json";
 
 const OUTPUT_PATH = path.join(
   path.dirname(fileURLToPath(import.meta.url)),

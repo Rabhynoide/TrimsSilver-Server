@@ -1,12 +1,19 @@
-// Regenerates src/data/food-catalog.json from broderickhyman/ao-bin-dumps.
+// Regenerates src/data/food-catalog.json from ao-data/ao-bin-dumps — the actively maintained
+// fork (broderickhyman/ao-bin-dumps, used previously, was archived in Jan
+// 2023 and stopped tracking patches years ago).
 // Run manually after major Albion Online game patches: npm run food-catalog:build
 //
-// Source: items.json (raw), `consumableitem` bucket's `cooked` (meals) and
-// `potion` subcategories only — confirmed by direct inspection these are
-// the two real craftable-for-profit consumable families (`fish`/`fishingbait`
-// are raw ingredients, not craft outputs, handled by
-// build-resource-catalog.mjs instead; `vanity` is event/cosmetic food, out
-// of scope). Same `CraftItem`/`CraftRecipe` shape as crafting-catalog.json
+// Source: items.json (raw), `consumableitem` bucket's `food` (meals) and
+// `potions` subcategories only — confirmed by direct inspection these are
+// the two real craftable-for-profit consumable families (`fish` is a raw
+// ingredient, not a craft output, handled by build-resource-catalog.mjs
+// instead; `other` is event/vanity food, out of scope). Re-verified against
+// a live 2026-08-31 data pull: `@shopsubcategory1` values here were renamed
+// at some point since (was `cooked`/`potion`, singular) — see
+// build-resource-catalog.mjs's header comment for the fuller story of this
+// schema drift, discovered the same session. `@craftingcategory` (below)
+// is unaffected, still singular "food"/"potion". Same `CraftItem`/
+// `CraftRecipe` shape as crafting-catalog.json
 // (uniqueName/specAchievementId/workshop/craftingCategory/recipes), kept as
 // a separate file/script rather than folded into that one so `/crafting`
 // itself (which deliberately excludes food/potions, see that script's own
@@ -40,7 +47,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const RAW_ITEMS_URL =
-  "https://raw.githubusercontent.com/broderickhyman/ao-bin-dumps/master/items.json";
+  "https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master/items.json";
 
 const OUTPUT_PATH = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -50,7 +57,7 @@ const OUTPUT_PATH = path.join(
   "food-catalog.json",
 );
 
-const SUBCATEGORY_TO_WORKSHOP = { cooked: "cooking", potion: "alchemy" };
+const SUBCATEGORY_TO_WORKSHOP = { food: "cooking", potions: "alchemy" };
 
 async function fetchJson(url) {
   const res = await fetch(url);
