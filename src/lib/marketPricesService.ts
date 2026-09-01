@@ -8,6 +8,7 @@
 
 import { AverageEntry, AodpRegion, fetchAveragePrices, fetchCurrentPrices, priceKey } from "./aodp";
 import { prisma } from "./prisma";
+import { applyFreshPrivateOrders, fetchFreshPrivateOrders, privateOnlyRow } from "./privateMarketOrders";
 
 export type PriceRowOut = {
   itemId: string;
@@ -39,6 +40,12 @@ export type GetMarketPricesParams = {
 // live — parameterized by a user-chosen day window, not practical to
 // pre-cache for every possible value. See schema.prisma's CachedMarketPrice
 // doc for exactly which item universes are cached and why.
+//
+// A third source, fresh opted-in private MarketOrder scans, is merged on top
+// of both — see privateMarketOrders.ts's own header comment for why: AODP
+// itself can be hours stale for a given (item, city, quality), and a
+// TrimsSilver-Client user's own recent market visit is often fresher than
+// AODP's last poll of that same market.
 export async function getMarketPrices(params: GetMarketPricesParams): Promise<PriceRowOut[]> {
   const { region, items, locations, qualities, averageDays } = params;
 
@@ -56,49 +63,67 @@ export async function getMarketPrices(params: GetMarketPricesParams): Promise<Pr
   const cachedItemIds = new Set(cached.map((c) => c.itemId));
   const liveItems = items.filter((id) => !cachedItemIds.has(id));
 
-  const [live, averages] = await Promise.all([
+  const [live, averages, freshPrivate] = await Promise.all([
     liveItems.length > 0 ? fetchCurrentPrices(region, liveItems, locations, qualities) : Promise.resolve([]),
     averageDays && averageDays > 0
       ? fetchAveragePrices(region, items, locations, qualities, averageDays)
       : Promise.resolve(new Map<string, AverageEntry>()),
+    fetchFreshPrivateOrders(region, items, locations, qualities),
   ]);
 
-  return [
+  const rows: PriceRowOut[] = [
     ...cached.map((c) => {
       const average = averages.get(priceKey(c.itemId, c.city, c.quality));
-      return {
-        itemId: c.itemId,
-        city: c.city,
-        quality: c.quality,
-        sellPriceMin: c.sellPriceMin,
-        sellPriceMinDate: c.sellPriceMinDate,
-        sellPriceMax: c.sellPriceMax,
-        sellPriceMaxDate: c.sellPriceMaxDate,
-        buyPriceMin: c.buyPriceMin,
-        buyPriceMinDate: c.buyPriceMinDate,
-        buyPriceMax: c.buyPriceMax,
-        buyPriceMaxDate: c.buyPriceMaxDate,
-        avgPrice: average?.avgPrice ?? null,
-        avgAmount: average?.avgAmount ?? null,
-      };
+      return applyFreshPrivateOrders(
+        {
+          itemId: c.itemId,
+          city: c.city,
+          quality: c.quality,
+          sellPriceMin: c.sellPriceMin,
+          sellPriceMinDate: c.sellPriceMinDate,
+          sellPriceMax: c.sellPriceMax,
+          sellPriceMaxDate: c.sellPriceMaxDate,
+          buyPriceMin: c.buyPriceMin,
+          buyPriceMinDate: c.buyPriceMinDate,
+          buyPriceMax: c.buyPriceMax,
+          buyPriceMaxDate: c.buyPriceMaxDate,
+          avgPrice: average?.avgPrice ?? null,
+          avgAmount: average?.avgAmount ?? null,
+        },
+        freshPrivate,
+      );
     }),
     ...live.map((row) => {
       const average = averages.get(priceKey(row.item_id, row.city, row.quality));
-      return {
-        itemId: row.item_id,
-        city: row.city,
-        quality: row.quality,
-        sellPriceMin: row.sell_price_min,
-        sellPriceMinDate: row.sell_price_min_date,
-        sellPriceMax: row.sell_price_max,
-        sellPriceMaxDate: row.sell_price_max_date,
-        buyPriceMin: row.buy_price_min,
-        buyPriceMinDate: row.buy_price_min_date,
-        buyPriceMax: row.buy_price_max,
-        buyPriceMaxDate: row.buy_price_max_date,
-        avgPrice: average?.avgPrice ?? null,
-        avgAmount: average?.avgAmount ?? null,
-      };
+      return applyFreshPrivateOrders(
+        {
+          itemId: row.item_id,
+          city: row.city,
+          quality: row.quality,
+          sellPriceMin: row.sell_price_min,
+          sellPriceMinDate: row.sell_price_min_date,
+          sellPriceMax: row.sell_price_max,
+          sellPriceMaxDate: row.sell_price_max_date,
+          buyPriceMin: row.buy_price_min,
+          buyPriceMinDate: row.buy_price_min_date,
+          buyPriceMax: row.buy_price_max,
+          buyPriceMaxDate: row.buy_price_max_date,
+          avgPrice: average?.avgPrice ?? null,
+          avgAmount: average?.avgAmount ?? null,
+        },
+        freshPrivate,
+      );
     }),
   ];
+
+  // Private-only coverage: a key AODP reported nothing for at all, but a
+  // fresh private scan exists for it.
+  const covered = new Set(rows.map((r) => priceKey(r.itemId, r.city, r.quality)));
+  for (const [key, entry] of freshPrivate) {
+    if (covered.has(key)) continue;
+    const [itemId, city, qualityStr] = key.split("|");
+    rows.push(privateOnlyRow(itemId, city, Number(qualityStr), entry));
+  }
+
+  return rows;
 }

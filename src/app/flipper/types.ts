@@ -1,12 +1,9 @@
 import type { AodpRegion } from "@/lib/aodp";
+import { REGION_SERVER_ID } from "@/lib/aodp";
 import { DEFAULT_SALES_TAX } from "@/data/market-constants";
 import type { SelectedItem } from "../market-prices/types";
 
-export const REGION_SERVER_ID: Record<AodpRegion, number> = {
-  Americas: 1,
-  Asia: 2,
-  Europe: 3,
-};
+export { REGION_SERVER_ID };
 
 export type FlipperConfig = {
   region: AodpRegion;

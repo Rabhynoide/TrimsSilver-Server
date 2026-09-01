@@ -18,6 +18,16 @@
 export const AODP_REGIONS = ["Americas", "Asia", "Europe"] as const;
 export type AodpRegion = (typeof AODP_REGIONS)[number];
 
+// The same AlbionServers.cs serverId convention referenced in this file's
+// own header comment — also what TrimsSilver-Client stamps on every
+// MarketOrder it uploads (`serverId` field, see prisma/schema.prisma), so
+// this is the join key between an AodpRegion and that private data.
+export const REGION_SERVER_ID: Record<AodpRegion, number> = {
+  Americas: 1,
+  Asia: 2,
+  Europe: 3,
+};
+
 const REGION_SUBDOMAIN: Record<AodpRegion, string> = {
   Americas: "west",
   Asia: "east",
