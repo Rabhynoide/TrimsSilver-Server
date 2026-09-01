@@ -70,6 +70,11 @@ export type MarketSnapshot = {
   price: number | null;
   priceAge: string | null;
   avgAmount: number | null;
+  // Which city this price was actually read from — null for a manual price
+  // (no city concept there) or when no price was found. Lets the UI show
+  // where a resource's buy price actually comes from, especially relevant
+  // once resourceSourceMode lets that vary per resource (see types.ts).
+  city: string | null;
 };
 
 export type EvalContext = {
@@ -148,6 +153,7 @@ export type ResourceTreeNode = {
   marketId: string;
   buyPrice: number | null;
   buyPriceAge: string | null;
+  buyPriceCity: string | null;
   saleRate: number | null;
   liquidityOk: boolean | null; // null = no sale-rate data at all
   craftOptions: ResourceCraftOption[];
@@ -195,6 +201,7 @@ export function evaluateResourceNode(
     marketId,
     buyPrice: market.price,
     buyPriceAge: market.priceAge,
+    buyPriceCity: market.city,
     saleRate: market.avgAmount,
     liquidityOk,
     craftOptions: [],

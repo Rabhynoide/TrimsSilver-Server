@@ -30,6 +30,7 @@ import {
   type CityCategoryRates,
   type CraftFinderConfig,
   type PriceMode,
+  type ResourceSourceMode,
 } from "./types";
 import { signInWithDiscord } from "./actions";
 import RankingTable from "./RankingTable";
@@ -39,6 +40,11 @@ const PRICE_MODE_LABELS: Record<PriceMode, string> = {
   current: "AODP Actuel",
   average: "AODP Moyen",
   manual: "Manuel",
+};
+
+const RESOURCE_SOURCE_MODE_LABELS: Record<ResourceSourceMode, string> = {
+  simulationCity: "Ville de fabrication uniquement",
+  cheapest: "N'importe où (moins cher)",
 };
 
 export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) {
@@ -144,29 +150,37 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
     return map;
   }, [prices]);
 
-  // Both the buy side and the sell side compare all 8 cities and take
-  // whichever is best (cheapest to buy, priciest to sell) — see types.ts:
-  // only crafting/refining fees stay tied to the selected simulation city,
-  // and this feature's own scope deliberately doesn't model transport cost
-  // between the buy/sell/craft cities. Quality is always 1 — Craft Finder's
-  // own scope, per the user.
-  function bestAcrossCities(marketId: string, pick: (a: PriceRow, b: PriceRow) => PriceRow): MarketSnapshot {
+  // The sell side always compares all 8 cities and takes whichever is best
+  // (priciest to sell) — see types.ts: only crafting/refining fees stay tied
+  // to the selected simulation city, and this feature's own scope
+  // deliberately doesn't model transport cost between the buy/sell/craft
+  // cities. The buy side does the same UNLESS resourceSourceMode restricts it
+  // to simulationCity's own market only (restrictToCity below), see
+  // ResourceSourceMode's own comment in types.ts. Quality is always 1 —
+  // Craft Finder's own scope, per the user.
+  function bestAcrossCities(
+    marketId: string,
+    pick: (a: PriceRow, b: PriceRow) => PriceRow,
+    restrictToCity?: string,
+  ): MarketSnapshot {
     if (config.priceMode === "manual") {
       const manual = config.manualPrices[marketId];
-      return { price: manual ?? null, priceAge: null, avgAmount: null };
+      return { price: manual ?? null, priceAge: null, avgAmount: null, city: null };
     }
-    const rows = (priceRowsById.get(marketId) ?? []).filter((r) => r.quality === 1 && r.sellPriceMin > 0);
-    if (rows.length === 0) return { price: null, priceAge: null, avgAmount: null };
+    let rows = (priceRowsById.get(marketId) ?? []).filter((r) => r.quality === 1 && r.sellPriceMin > 0);
+    if (restrictToCity) rows = rows.filter((r) => r.city === restrictToCity);
+    if (rows.length === 0) return { price: null, priceAge: null, avgAmount: null, city: null };
     const best = rows.reduce(pick);
     const price = config.priceMode === "average" ? best.avgPrice ?? null : best.sellPriceMin;
-    return { price, priceAge: best.sellPriceMinDate, avgAmount: best.avgAmount ?? null };
+    return { price, priceAge: best.sellPriceMinDate, avgAmount: best.avgAmount ?? null, city: best.city };
   }
 
   const marketOf = useMemo(() => {
+    const restrictToCity = config.resourceSourceMode === "simulationCity" ? config.simulationCity : undefined;
     return (marketId: string): MarketSnapshot =>
-      bestAcrossCities(marketId, (a, b) => (a.sellPriceMin <= b.sellPriceMin ? a : b));
+      bestAcrossCities(marketId, (a, b) => (a.sellPriceMin <= b.sellPriceMin ? a : b), restrictToCity);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [priceRowsById, config.priceMode, config.manualPrices]);
+  }, [priceRowsById, config.priceMode, config.manualPrices, config.resourceSourceMode, config.simulationCity]);
 
   const outputPriceOf = useMemo(() => {
     return (uniqueName: string, enchant: number): MarketSnapshot =>
@@ -398,6 +412,28 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
               ))}
             </select>
           </label>
+          <fieldset className="flex flex-col gap-1 text-sm text-navy-300">
+            <legend>Ressources en entrée depuis</legend>
+            <div className="flex gap-2">
+              {(["simulationCity", "cheapest"] as ResourceSourceMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setConfig((c) => ({ ...c, resourceSourceMode: mode }))}
+                  aria-pressed={config.resourceSourceMode === mode}
+                  className={`rounded border px-2 py-1 text-xs ${
+                    config.resourceSourceMode === mode
+                      ? "border-gold-500 bg-gold-500 text-navy-950"
+                      : "border-navy-600 text-navy-200 hover:bg-navy-700"
+                  }`}
+                >
+                  {mode === "simulationCity"
+                    ? `Ville de fabrication (${config.simulationCity})`
+                    : RESOURCE_SOURCE_MODE_LABELS[mode]}
+                </button>
+              ))}
+            </div>
+          </fieldset>
           {config.priceMode === "average" && (
             <label className="flex flex-col gap-1 text-sm text-navy-300">
               Jours moyens
@@ -486,7 +522,11 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
         <p className="mt-3 text-xs text-navy-400">
           Taxe de vente {(salesTaxRateFor(config.premium) * 100).toFixed(2)}% / Frais de placement{" "}
           {(setupFeeRateFor(config.premium) * 100).toFixed(2)}% (selon le statut Premium), appliqués au
-          meilleur prix de vente parmi les 8 villes. L&apos;achat des matières compare aussi les 8 villes.
+          meilleur prix de vente parmi les 8 villes.{" "}
+          {config.resourceSourceMode === "simulationCity"
+            ? `L'achat des matières est restreint au marché de ${config.simulationCity} (voir la ville
+              indiquée à côté de chaque prix d'achat dans l'arbre acheter/fabriquer).`
+            : "L'achat des matières compare aussi les 8 villes (voir la ville indiquée à côté de chaque prix d'achat dans l'arbre acheter/fabriquer)."}{" "}
           Transport et profondeur du carnet d&apos;ordres non modélisés (v1) — voir le taux de vente pour le
           signal de liquidité. &quot;Volume max/jour&quot; = 25% des ventes/jour (règle empirique pour éviter
           de saturer vos propres annonces et repayer les frais de placement à chaque re-listing) ; &quot;Gain

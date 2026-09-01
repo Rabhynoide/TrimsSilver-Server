@@ -19,6 +19,16 @@ export const CRAFT_FINDER_REGION = "Europe" as const;
 // today, the same documented gap as /crafting, server issue #11).
 export type PriceMode = "current" | "average" | "manual";
 
+// Where input resources (the buy side of the make-or-buy tree) are allowed
+// to be sourced from — "cheapest" is the original behavior (compares all 8
+// cities, see calc.ts's evaluateResourceNode), "simulationCity" restricts
+// every buy to simulationCity's own market only, for players who don't want
+// to model hauling resources in from elsewhere. Only affects the buy side —
+// the sell side (outputPriceOf) always compares all 8 cities regardless,
+// since that's a separate, unrelated question (where you list the finished
+// item), not asked to change here.
+export type ResourceSourceMode = "cheapest" | "simulationCity";
+
 // One Return Rate + station-fee-rate slot per (city, node category) pair —
 // unlike the Focus toggle below, these genuinely vary by city (a city's
 // crafting-station specialization bonus, and its stations' own posted
@@ -40,6 +50,7 @@ export type CraftFinderConfig = {
   simulationCity: string;
   premium: boolean;
   priceMode: PriceMode;
+  resourceSourceMode: ResourceSourceMode;
   averageDays: number;
   // Which enchant levels to rank, simultaneously — each produces its own
   // separate rows, never aggregated together (same "never aggregate"
@@ -108,6 +119,7 @@ export function defaultCraftFinderConfig(): CraftFinderConfig {
     simulationCity: "Caerleon",
     premium: true,
     priceMode: "current",
+    resourceSourceMode: "cheapest",
     averageDays: 7,
     enchants: [CRAFT_FINDER_CACHED_ENCHANT],
     minSaleRatePerDay: DEFAULT_MIN_SALE_RATE_PER_DAY,

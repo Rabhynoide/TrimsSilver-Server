@@ -88,6 +88,14 @@ function ResourceNodeRow({
               <span title={`Fraîcheur : ${ageLabel(node.buyPriceAge)}`} className="text-navy-500">
                 ({ageLabel(node.buyPriceAge)})
               </span>
+              {node.buyPriceCity && (
+                <span
+                  title="Ville d'où provient ce prix d'achat"
+                  className="ml-1 rounded bg-navy-700 px-1 text-[10px] text-navy-300"
+                >
+                  {node.buyPriceCity}
+                </span>
+              )}
             </>
           ) : (
             "n/a"
