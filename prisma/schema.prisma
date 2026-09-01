@@ -340,10 +340,11 @@ model CraftFinderSettings {
 // live-proxying AODP. Scoped to the item universes that get queried in full
 // on every refresh: Farming and Journals' whole catalogs (~650 items,
 // quality 1 only — farmables/journal materials never vary quality), and
-// Craft Finder's whole equipment catalog at enchant 0 (768 items, quality 1
-// only — Craft Finder ranks quality 1 exclusively, per its own scope) plus
-// its whole resource-refining catalog (also quality 1 only) — a
-// craft-profitability ranking inherently needs the full catalog priced.
+// Craft Finder's whole equipment + food/potion catalog at enchant 0 (768 +
+// 74 items, quality 1 only — Craft Finder ranks quality 1 exclusively, per
+// its own scope) plus its whole resource/ingredient catalog (also quality 1
+// only) — a craft-profitability ranking inherently needs the full catalog
+// priced.
 // NOT Crafting's or Market Prices' catalogs, which are queried selectively
 // (one item's recipe, or whatever the user picks) rather than fully every
 // time, so caching their entire catalogs (Crafting alone is ~3,900

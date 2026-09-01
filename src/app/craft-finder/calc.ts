@@ -47,6 +47,12 @@ import {
 export type ResourceRecipeOption = {
   silver: number;
   focusCost: number;
+  // Units produced per craft action — almost always 1, but confirmed by
+  // inspection to genuinely vary for some resource/food-ingredient recipes
+  // (e.g. T4_STONEBLOCK's higher-enchant options, T1_FISHCHOPS). The
+  // option's totalCost below is already divided down to a real per-unit
+  // figure, so nothing downstream needs to re-divide by this.
+  amountCrafted: number;
   resources: { uniqueName: string; count: number }[];
 };
 
@@ -214,16 +220,24 @@ export function evaluateResourceNode(
           node: childNode,
         };
       });
+      // `children` (and the raw resourceCost/stationFeeAmount/silver/focusCost
+      // below) describe one whole craft ACTION, matching the real in-game
+      // recipe — but the option can produce more than one unit at once
+      // (amountCrafted, e.g. T4_STONEBLOCK's higher-enchant options, or
+      // T1_FISHCHOPS), so every cost figure the caller actually consumes
+      // downstream (totalCost here, and focusCost via totalFocusCost's own
+      // traversal below) is divided down to a real per-unit value.
+      const amountCrafted = option.amountCrafted || 1;
       const resourceCost = children.reduce((sum, c) => sum + (c.lineCost ?? 0), 0);
-      const totalCost = resourceCost + stationFeeAmount + option.silver;
+      const totalCost = (resourceCost + stationFeeAmount + option.silver) / amountCrafted;
       return {
         optionIndex,
-        silver: option.silver,
-        focusCost: option.focusCost,
+        silver: option.silver / amountCrafted,
+        focusCost: option.focusCost / amountCrafted,
         category,
         itemValue: entry.itemValue,
-        stationFeeAmount,
-        resourceCost,
+        stationFeeAmount: stationFeeAmount / amountCrafted,
+        resourceCost: resourceCost / amountCrafted,
         totalCost,
         children,
       };
@@ -269,12 +283,18 @@ export type EquipmentTreeResult = {
   uniqueName: string;
   enchant: number;
   workshop: string;
+  // Despite the "PerCraft" naming (kept for continuity — this field
+  // predates food/potion support, where a craft action can yield several
+  // units at once), every field below is already per OUTPUT UNIT, not per
+  // craft action — see evaluateEquipmentCraft's amountCrafted division.
   focusCostPerCraft: number;
   silverFeePerCraft: number;
   itemValue: number;
   stationFeeAmount: number;
   resourceCost: number;
   craftCost: number;
+  // Still describes one whole craft action's real recipe (not divided) —
+  // the intuitive thing to show in a tree UI, matching the in-game recipe.
   children: ResourceChildLine[];
   missingPrices: string[];
   // The Return Rate actually used for this item, after applying its own
@@ -329,18 +349,26 @@ export function evaluateEquipmentCraft(
   });
 
   const missingPrices = children.filter((c) => c.lineCost == null).map((c) => c.uniqueName);
+  // `children` describes one whole craft action (matching the real in-game
+  // recipe), but that action can produce more than one unit at once —
+  // always true for equipment (amountCrafted is always 1 there, confirmed
+  // by inspection) but frequently not for food-catalog.json's food/potion
+  // recipes (batches of 5-10 are common) — so every cost figure below is
+  // divided down to a real per-unit value, same treatment as
+  // evaluateResourceNode's own craft options.
+  const amountCrafted = recipe.amountCrafted || 1;
   const resourceCost = children.reduce((sum, c) => sum + (c.lineCost ?? 0), 0);
-  const craftCost = resourceCost + stationFeeAmount + recipe.silver;
+  const craftCost = (resourceCost + stationFeeAmount + recipe.silver) / amountCrafted;
 
   return {
     uniqueName: item.uniqueName,
     enchant: recipe.enchant,
     workshop,
-    focusCostPerCraft: recipe.focusCost,
-    silverFeePerCraft: recipe.silver,
+    focusCostPerCraft: recipe.focusCost / amountCrafted,
+    silverFeePerCraft: recipe.silver / amountCrafted,
     itemValue,
-    stationFeeAmount,
-    resourceCost,
+    stationFeeAmount: stationFeeAmount / amountCrafted,
+    resourceCost: resourceCost / amountCrafted,
     craftCost,
     children,
     missingPrices,

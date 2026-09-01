@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import craftingCatalog from "@/data/crafting-catalog.json";
+import foodCatalog from "@/data/food-catalog.json";
 import resourceCatalog from "@/data/resource-catalog.json";
 import { craftItemId } from "@/app/crafting/calc";
 import { resourceMarketId } from "@/data/journal-constants";
@@ -19,8 +20,9 @@ function parseEnchants(raw: string | null): number[] {
 }
 
 // Craft Finder's ranking prices its ENTIRE catalog on every refresh (768
-// equipment ids across every selected enchant level + ~230 resource-layer
-// ids, all 8 cities) — far more than any other feature. Only quality 1 is
+// equipment + 74 food/potion ids across every selected enchant level +
+// ~330 resource/ingredient-layer ids, all 8 cities) — far more than any
+// other feature. Only quality 1 is
 // ranked (per the feature's own scope), which keeps this to one dimension
 // instead of the five Market Prices/Crafting need. Routing this through
 // /api/market/prices from the browser would need many chunked requests, and
@@ -45,7 +47,7 @@ export async function GET(request: NextRequest) {
   const averageDays = averageDaysParam ? parseInt(averageDaysParam, 10) : null;
 
   const equipmentIds = new Set<string>();
-  for (const item of craftingCatalog as unknown as EquipmentCatalogRow[]) {
+  for (const item of [...craftingCatalog, ...foodCatalog] as unknown as EquipmentCatalogRow[]) {
     for (const enchant of enchants) {
       if (item.recipes.some((r) => r.enchant === enchant)) {
         equipmentIds.add(craftItemId(item.uniqueName, enchant));

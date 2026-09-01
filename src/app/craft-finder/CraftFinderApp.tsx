@@ -296,9 +296,9 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
     <main className="flex flex-1 flex-col gap-6 p-8 w-full">
       <h1 className="text-2xl font-semibold text-navy-100">Quoi fabriquer pour gagner de l&apos;argent</h1>
       <p className="text-sm text-navy-400">
-        Classement des équipements les plus rentables à fabriquer, ressource par ressource jusqu&apos;à la
-        matière première — filtré par volume de vente réel pour écarter les prix peu fiables. Serveur Europe
-        uniquement.
+        Classement des équipements, nourritures et potions les plus rentables à fabriquer, ressource par
+        ressource jusqu&apos;à la matière première — filtré par volume de vente réel pour écarter les prix peu
+        fiables. Serveur Europe uniquement.
       </p>
 
       {pricesError && (
@@ -457,7 +457,7 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
 
         <details className="mt-4">
           <summary className="cursor-pointer text-sm font-medium text-navy-300">
-            Taux de retour / frais de station / Focus par atelier — {config.simulationCity}
+            Taux de retour / frais de station / Focus par catégorie — {config.simulationCity}
           </summary>
           <div className="mt-2 flex items-center justify-between">
             <span className="text-xs text-navy-500">
@@ -476,7 +476,7 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
             <table className="w-full min-w-[640px] table-fixed border-collapse text-sm">
               <thead>
                 <tr className="divide-x divide-navy-700 bg-navy-850 text-navy-300">
-                  <th className="w-56 px-2 py-1.5 text-left text-xs uppercase tracking-wide">Atelier</th>
+                  <th className="w-56 px-2 py-1.5 text-left text-xs uppercase tracking-wide">Catégorie</th>
                   <th className="w-32 px-2 py-1.5 text-xs uppercase tracking-wide">Taux de retour %</th>
                   <th className="w-40 px-2 py-1.5 text-xs uppercase tracking-wide">Argent / 100 Nutrition</th>
                   <th className="w-24 px-2 py-1.5 text-xs uppercase tracking-wide">Focus</th>

@@ -4,6 +4,13 @@ export type CraftRecipe = {
   enchant: number;
   silver: number;
   focusCost: number;
+  // Units produced per craft action — always 1 for equipment (confirmed by
+  // inspection), but food-catalog.json's food/potion recipes frequently
+  // batch-produce 5 or 10 at once; kept here (rather than only on that
+  // catalog's own type) so Craft Finder's calc.ts can divide down to a
+  // real per-unit cost using the exact same code path for both catalogs.
+  // Unused by this page's own calc (always 1 in its own data).
+  amountCrafted: number;
   resources: CraftResource[];
 };
 

@@ -30,6 +30,22 @@ export const CRAFT_FINDER_WORKSHOP_LABELS_FR: Record<CraftFinderWorkshop, string
   workbench: "Établi",
 };
 
+// The 2 real Albion food/potion crafting buildings — Kitchen (food) and
+// Alchemist's Lab (potions), confirmed by direct inspection of
+// food-catalog.json's items (every one carries a uniform `@craftingcategory`
+// of "food" or "potion", mapped 1:1 to these). Kept as a separate tuple from
+// CRAFT_FINDER_WORKSHOPS above (rather than folded in) since they're a
+// distinct building family with their own ingredient chain (crops/fish, not
+// ore/wood/hide/fiber/rock) — see build-food-catalog.mjs and this file's
+// CRAFTING_SPECIALTY_CITY_BY_CATEGORY below.
+export const CRAFT_FINDER_FOOD_CATEGORIES = ["cooking", "alchemy"] as const;
+export type CraftFinderFoodCategory = (typeof CRAFT_FINDER_FOOD_CATEGORIES)[number];
+
+export const CRAFT_FINDER_FOOD_LABELS_FR: Record<CraftFinderFoodCategory, string> = {
+  cooking: "Cuisine",
+  alchemy: "Alchimie",
+};
+
 // The 5 refined-resource categories from resource-catalog.json. Raw
 // resources (ore/wood/hide/fiber/rock) are deliberately NOT a category here
 // — they're never crafted/refined in this feature's scope (the raw-resource
@@ -62,12 +78,14 @@ export const CRAFT_FINDER_REFINING_LABELS_FR: Record<CraftFinderRefiningCategory
 // exposes one Return Rate field for the whole craft today.
 export const CRAFT_FINDER_NODE_CATEGORIES = [
   ...CRAFT_FINDER_WORKSHOPS,
+  ...CRAFT_FINDER_FOOD_CATEGORIES,
   ...CRAFT_FINDER_REFINING_CATEGORIES,
 ] as const;
 export type CraftFinderNodeCategory = (typeof CRAFT_FINDER_NODE_CATEGORIES)[number];
 
 export const CRAFT_FINDER_CATEGORY_LABELS_FR: Record<CraftFinderNodeCategory, string> = {
   ...CRAFT_FINDER_WORKSHOP_LABELS_FR,
+  ...CRAFT_FINDER_FOOD_LABELS_FR,
   ...CRAFT_FINDER_REFINING_LABELS_FR,
 };
 
@@ -202,7 +220,13 @@ export function defaultReturnRateForCity(city: string, category: CraftFinderNode
 // @craftingcategory per sub-type in the raw data), and "tools"/"gatherergear"
 // together are the whole of Toolmaker, so those three read as "one
 // craftingcategory = one whole building's worth" even though the mechanic
-// itself is still item-type-based, not building-based.
+// itself is still item-type-based, not building-based. `food`/`potion`
+// (Kitchen/Alchemist's Lab, added for Craft Finder's food/potion support)
+// are genuinely whole-category matches, not an approximation — every food
+// item shares the single `food` category and every potion the single
+// `potion` category (see build-food-catalog.mjs), so Caerleon's "cooked
+// food" specialty and Brecilien's "potion" specialty apply to their entire
+// respective catalogs, unlike equipment's per-weapon-type granularity.
 const CRAFTING_SPECIALTY_CITY_BY_CATEGORY: Record<string, string> = {
   // Fort Sterling
   spear: "Fort Sterling",
@@ -238,9 +262,11 @@ const CRAFTING_SPECIALTY_CITY_BY_CATEGORY: Record<string, string> = {
   knuckles: "Caerleon",
   tools: "Caerleon",
   gatherergear: "Caerleon",
+  food: "Caerleon",
   // Brecilien
   cape: "Brecilien",
   bag: "Brecilien",
+  potion: "Brecilien",
 };
 
 export function craftingSpecialtyBonusPct(city: string, craftingCategory: string | null): number {

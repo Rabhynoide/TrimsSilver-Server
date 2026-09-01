@@ -1,6 +1,7 @@
 import farmingCatalog from "@/data/farming-catalog.json";
 import journalCatalog from "@/data/journal-catalog.json";
 import craftingCatalog from "@/data/crafting-catalog.json";
+import foodCatalog from "@/data/food-catalog.json";
 import resourceCatalog from "@/data/resource-catalog.json";
 import { journalMarketId, resourceMarketId } from "@/data/journal-constants";
 import { CRAFT_FINDER_CACHED_ENCHANT } from "@/data/craft-finder-constants";
@@ -104,7 +105,7 @@ function craftFinderResourceItemIds(): Set<string> {
 // Farming/Journals' own universe, so it joins their cycle below.
 function craftFinderEquipmentItemIds(): Set<string> {
   const names = new Set<string>();
-  for (const item of craftingCatalog as unknown as EquipmentCatalogRow[]) {
+  for (const item of [...craftingCatalog, ...foodCatalog] as unknown as EquipmentCatalogRow[]) {
     if (item.recipes.some((r) => r.enchant === CRAFT_FINDER_CACHED_ENCHANT)) {
       names.add(craftItemId(item.uniqueName, CRAFT_FINDER_CACHED_ENCHANT));
     }

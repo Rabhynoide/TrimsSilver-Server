@@ -146,6 +146,10 @@ function buildRecipe(enchant, craftingrequirements) {
     enchant,
     silver: parseInt(craftingrequirements["@silver"] ?? "0", 10),
     focusCost: parseInt(craftingrequirements["@craftingfocus"] ?? "0", 10),
+    // Always 1 for equipment (confirmed by inspection — unlike food/potion
+    // recipes in food-catalog.json, which frequently batch-produce more per
+    // craft action), kept for shape parity with that catalog's CraftRecipe.
+    amountCrafted: parseInt(craftingrequirements["@amountcrafted"] ?? "1", 10),
     resources,
   };
 }
