@@ -1,44 +1,70 @@
 // Same philosophy as crafting-constants.ts: no invented per-category Return
 // Rate/station-fee table exists in a form worth hardcoding, so these stay
-// plain, documented defaults the user tunes per category from their own
+// plain, documented defaults the user tunes per city/workshop from their own
 // in-game crafting/refining window — never guessed "typical" numbers.
 
-// One Return Rate / station-fee-rate / Focus-toggle slot per node category
-// in the make-or-buy tree: the final equipment craft, plus each of the 10
-// resource categories from resource-catalog.json (5 raw — used for the
-// silver-only Resource Transmutation recipes some enchanted raw resources
-// carry — and 5 refined). Keeping this per-category rather than per
-// individual tree node (there can be dozens of resource nodes in one item's
-// full tree) mirrors how /crafting itself only exposes one Return Rate
-// field for the whole craft today — a tree-wide form field per node would be
-// unusable.
-export const CRAFT_FINDER_NODE_CATEGORIES = [
-  "equipment",
-  "ore",
-  "wood",
-  "hide",
-  "fiber",
-  "rock",
+// The 5 real Albion crafting buildings equipment is made at — confirmed
+// against the wiki's crafting-station guides and patch notes, not guessed
+// (see scripts/build-crafting-catalog.mjs's own mapping comment for the
+// full @craftingcategory → workshop table). Every equipment item in
+// crafting-catalog.json carries its own `workshop` field already resolved
+// to one of these five.
+export const CRAFT_FINDER_WORKSHOPS = [
+  "warriors_forge",
+  "hunters_lodge",
+  "mages_tower",
+  "toolmaker",
+  "workbench",
+] as const;
+export type CraftFinderWorkshop = (typeof CRAFT_FINDER_WORKSHOPS)[number];
+
+export const CRAFT_FINDER_WORKSHOP_LABELS_FR: Record<CraftFinderWorkshop, string> = {
+  warriors_forge: "Forge du guerrier",
+  hunters_lodge: "Repaire du chasseur",
+  mages_tower: "Tour du mage",
+  toolmaker: "Fabricant d'outils",
+  workbench: "Établi",
+};
+
+// The 5 refined-resource categories from resource-catalog.json. Raw
+// resources (ore/wood/hide/fiber/rock) are deliberately NOT a category here
+// — they're never crafted/refined in this feature's scope (the raw-resource
+// "Resource Transmutation" mechanic is intentionally not modeled, see
+// build-resource-catalog.mjs), so they never incur a station fee or need a
+// Return Rate of their own.
+export const CRAFT_FINDER_REFINING_CATEGORIES = [
   "metalbar",
   "planks",
   "leather",
   "cloth",
   "stoneblock",
 ] as const;
-export type CraftFinderNodeCategory = (typeof CRAFT_FINDER_NODE_CATEGORIES)[number];
+export type CraftFinderRefiningCategory = (typeof CRAFT_FINDER_REFINING_CATEGORIES)[number];
 
-export const CRAFT_FINDER_CATEGORY_LABELS_FR: Record<CraftFinderNodeCategory, string> = {
-  equipment: "Fabrication d'équipement",
-  ore: "Transmutation de minerai",
-  wood: "Transmutation de bois",
-  hide: "Transmutation de peau",
-  fiber: "Transmutation de fibre",
-  rock: "Transmutation de pierre",
+export const CRAFT_FINDER_REFINING_LABELS_FR: Record<CraftFinderRefiningCategory, string> = {
   metalbar: "Raffinage de barres de métal",
   planks: "Raffinage de planches",
   leather: "Raffinage de cuir",
   cloth: "Raffinage de tissu",
   stoneblock: "Raffinage de blocs de pierre",
+};
+
+// The full set of "node categories" the make-or-buy tree's Return
+// Rate/station-fee config spans: every equipment workshop plus every
+// refining category. One Return Rate / station-fee slot per (city,
+// category) pair — see types.ts's CraftFinderConfig.cityCategoryConfig —
+// rather than per individual tree node (there can be dozens of resource
+// nodes in one item's full tree), mirroring how /crafting itself only
+// exposes one Return Rate field for the whole craft today.
+export const CRAFT_FINDER_NODE_CATEGORIES = [
+  ...CRAFT_FINDER_WORKSHOPS,
+  ...CRAFT_FINDER_REFINING_CATEGORIES,
+] as const;
+export type CraftFinderNodeCategory = (typeof CRAFT_FINDER_NODE_CATEGORIES)[number];
+
+export const CRAFT_FINDER_CATEGORY_LABELS_FR: Record<CraftFinderNodeCategory, string> = {
+  ...CRAFT_FINDER_WORKSHOP_LABELS_FR,
+  ...CRAFT_FINDER_REFINING_LABELS_FR,
 };
 
 // Sale rate (avg items sold/day, from AODP history's item_count) below which
@@ -67,6 +93,15 @@ const TIER_LIQUIDITY_SCALE: Record<number, number> = {
 export function minSaleRateForTier(tier: number, baseRate: number): number {
   return baseRate * (TIER_LIQUIDITY_SCALE[tier] ?? 1);
 }
+
+// Confirmed against Albion's official "Usage Fee and Crafting Changes"
+// patch notes (Lands Awakened update): a crafting station's Usage Fee is
+// Nutrition Cost (= Item Value × this constant) turned into silver at the
+// station's own posted "silver per 100 Nutrition" rate — a live value the
+// station's owner sets, not a fixed game constant, hence why it stays a
+// manual per-(city, category) input in CraftFinderConfig rather than
+// something derived automatically.
+export const NUTRITION_COST_PER_ITEM_VALUE = 0.1125;
 
 // Craft Finder's ranking always prices the whole equipment catalog, so
 // (like Farming/Journals) its item universe is worth caching in full rather

@@ -28,6 +28,20 @@
 // AchievementSnapshot data, the same mechanism Farming uses for `FARM_*`
 // ids. Items without the field just get `specAchievementId: null` and skip
 // auto-fill — a documented gap, not a guessed category mapping.
+//
+// `workshop` (added for Craft Finder): every item's `@craftingcategory`
+// (e.g. "sword", "plate_helmet") is mapped to the real Albion crafting
+// building it's made at — confirmed against the wiki's crafting-station
+// guides, not guessed: Warrior's Forge (melee weapons + plate armor),
+// Hunter's Lodge (ranged weapons + leather armor), Mage's Tower (magic
+// weapons + cloth armor), Toolmaker (gathering tools), Workbench
+// (off-hands, bags, capes — the "Bag Tailor"/"Cape Tailor" specialization
+// nodes live there, confirmed via patch notes). A small number of
+// `@craftingcategory` values found in-scope don't map to any of the 5
+// (internal/QA/prototype items that slipped through the marketplace
+// filters below, e.g. "UNIQUE_WEAPONMASTER_ARMOR_PROTOTYPE") — these fall
+// back to "workbench" rather than being dropped, a documented approximation
+// for a handful of non-player-facing items, not a real gap.
 
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -45,6 +59,57 @@ const OUTPUT_PATH = path.join(
 );
 
 const IN_SCOPE_BUCKETS = ["weapon", "equipmentitem"];
+
+const CRAFTING_CATEGORY_TO_WORKSHOP = {
+  // Warrior's Forge — melee weapons + plate armor
+  sword: "warriors_forge",
+  axe: "warriors_forge",
+  mace: "warriors_forge",
+  dagger: "warriors_forge",
+  spear: "warriors_forge",
+  quarterstaff: "warriors_forge",
+  hammer: "warriors_forge",
+  knuckles: "warriors_forge",
+  plate_helmet: "warriors_forge",
+  plate_armor: "warriors_forge",
+  plate_shoes: "warriors_forge",
+  // Hunter's Lodge — ranged weapons + leather armor
+  bow: "hunters_lodge",
+  crossbow: "hunters_lodge",
+  leather_helmet: "hunters_lodge",
+  leather_armor: "hunters_lodge",
+  leather_shoes: "hunters_lodge",
+  // Mage's Tower — magic weapons + cloth armor
+  cursestaff: "mages_tower",
+  firestaff: "mages_tower",
+  froststaff: "mages_tower",
+  arcanestaff: "mages_tower",
+  holystaff: "mages_tower",
+  naturestaff: "mages_tower",
+  cloth_helmet: "mages_tower",
+  cloth_armor: "mages_tower",
+  cloth_shoes: "mages_tower",
+  // Toolmaker — gathering tools
+  pickaxe: "toolmaker",
+  tools: "toolmaker",
+  stonehammer: "toolmaker",
+  woodaxe: "toolmaker",
+  sickle: "toolmaker",
+  skinningknife: "toolmaker",
+  gatherergear: "toolmaker",
+  // Workbench — off-hands, bags, capes
+  shield: "workbench",
+  offhand: "workbench",
+  horn: "workbench",
+  torch: "workbench",
+  cape: "workbench",
+  bag: "workbench",
+};
+const DEFAULT_WORKSHOP = "workbench";
+
+function workshopFor(entry) {
+  return CRAFTING_CATEGORY_TO_WORKSHOP[entry["@craftingcategory"]] ?? DEFAULT_WORKSHOP;
+}
 
 async function fetchJson(url) {
   const res = await fetch(url);
@@ -106,6 +171,7 @@ function extractCatalog(rawItems) {
       rows.push({
         uniqueName,
         specAchievementId: entry["@combatspecachievement"] ?? null,
+        workshop: workshopFor(entry),
         recipes,
       });
     }

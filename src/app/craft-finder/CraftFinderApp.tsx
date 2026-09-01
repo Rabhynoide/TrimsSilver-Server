@@ -23,6 +23,7 @@ import {
   defaultCraftFinderConfig,
   salesTaxRateFor,
   setupFeeRateFor,
+  type CityCategoryRates,
   type CraftFinderConfig,
   type PriceMode,
 } from "./types";
@@ -172,18 +173,22 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
     return gross * (1 - salesTaxRateFor(config.premium) - setupFeeRateFor(config.premium));
   }
 
-  const ctx: EvalContext = useMemo(
-    () => ({
+  // Return Rate and the station's Nutrition-fee rate both come from the
+  // currently selected simulation city's row in cityCategoryConfig — the
+  // one config table this feature has that genuinely varies by city (see
+  // types.ts).
+  const ctx: EvalContext = useMemo(() => {
+    const cityRates = config.cityCategoryConfig[config.simulationCity];
+    return {
       resourceByUniqueName,
       marketOf,
-      returnRateFor: (category) => config.returnRates[category] ?? 0,
-      stationFeeRateFor: (category) => config.stationFeeRates[category] ?? 0,
+      returnRateFor: (category) => cityRates?.[category]?.returnRate ?? 0,
+      nutritionFeeRateFor: (category) => cityRates?.[category]?.stationFeeSilverPer100Nutrition ?? 0,
       useFocusFor: (category) => config.useFocus[category] ?? true,
       minSaleRatePerDay: config.minSaleRatePerDay,
       maxDepth: 8,
-    }),
-    [resourceByUniqueName, marketOf, config.returnRates, config.stationFeeRates, config.useFocus, config.minSaleRatePerDay],
-  );
+    };
+  }, [resourceByUniqueName, marketOf, config.cityCategoryConfig, config.simulationCity, config.useFocus, config.minSaleRatePerDay]);
 
   const rankedRows = useMemo(() => {
     const rows: FinalItemResult[] = [];
@@ -243,12 +248,24 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
     setConfig((c) => ({ ...c, selectedUniqueName: uniqueName, selectedEnchant: enchant }));
   }
 
-  function updateCategoryValue(
-    field: "returnRates" | "stationFeeRates",
+  // Edits the currently selected simulation city's row only — switching
+  // "Ville de simulation" switches which city's numbers these fields show
+  // and edit, rather than needing a separate city picker just for this table.
+  function updateCityCategoryValue(
+    field: keyof CityCategoryRates,
     category: CraftFinderNodeCategory,
     value: number,
   ) {
-    setConfig((c) => ({ ...c, [field]: { ...c[field], [category]: value } }));
+    setConfig((c) => ({
+      ...c,
+      cityCategoryConfig: {
+        ...c.cityCategoryConfig,
+        [c.simulationCity]: {
+          ...c.cityCategoryConfig[c.simulationCity],
+          [category]: { ...c.cityCategoryConfig[c.simulationCity][category], [field]: value },
+        },
+      },
+    }));
   }
 
   function toggleCategoryFocus(category: CraftFinderNodeCategory) {
@@ -420,63 +437,71 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
 
         <details className="mt-4">
           <summary className="cursor-pointer text-sm font-medium text-navy-300">
-            Taux de retour / frais de station / Focus par catégorie
+            Taux de retour / frais de station / Focus par atelier — {config.simulationCity}
           </summary>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[640px] table-fixed border-collapse text-sm">
               <thead>
                 <tr className="divide-x divide-navy-700 bg-navy-850 text-navy-300">
-                  <th className="w-56 px-2 py-1.5 text-left text-xs uppercase tracking-wide">Catégorie</th>
+                  <th className="w-56 px-2 py-1.5 text-left text-xs uppercase tracking-wide">Atelier</th>
                   <th className="w-32 px-2 py-1.5 text-xs uppercase tracking-wide">Taux de retour %</th>
-                  <th className="w-32 px-2 py-1.5 text-xs uppercase tracking-wide">Frais de station %</th>
+                  <th className="w-40 px-2 py-1.5 text-xs uppercase tracking-wide">Argent / 100 Nutrition</th>
                   <th className="w-24 px-2 py-1.5 text-xs uppercase tracking-wide">Focus</th>
                 </tr>
               </thead>
               <tbody>
-                {CRAFT_FINDER_NODE_CATEGORIES.map((category) => (
-                  <tr key={category} className="border-b border-navy-800">
-                    <td className="px-2 py-1.5 text-navy-300">{CRAFT_FINDER_CATEGORY_LABELS_FR[category]}</td>
-                    <td className="px-2 py-1.5">
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={0.1}
-                        value={Math.round(config.returnRates[category] * 1000) / 10}
-                        onChange={(e) =>
-                          updateCategoryValue("returnRates", category, (parseFloat(e.target.value) || 0) / 100)
-                        }
-                        className="w-20 rounded border border-navy-600 bg-navy-900 px-1.5 py-0.5 text-navy-100"
-                      />
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={0.1}
-                        value={Math.round(config.stationFeeRates[category] * 1000) / 10}
-                        onChange={(e) =>
-                          updateCategoryValue("stationFeeRates", category, (parseFloat(e.target.value) || 0) / 100)
-                        }
-                        className="w-20 rounded border border-navy-600 bg-navy-900 px-1.5 py-0.5 text-navy-100"
-                      />
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <input
-                        type="checkbox"
-                        checked={config.useFocus[category]}
-                        onChange={() => toggleCategoryFocus(category)}
-                      />
-                    </td>
-                  </tr>
-                ))}
+                {CRAFT_FINDER_NODE_CATEGORIES.map((category) => {
+                  const rates = config.cityCategoryConfig[config.simulationCity]?.[category];
+                  return (
+                    <tr key={category} className="border-b border-navy-800">
+                      <td className="px-2 py-1.5 text-navy-300">{CRAFT_FINDER_CATEGORY_LABELS_FR[category]}</td>
+                      <td className="px-2 py-1.5">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={0.1}
+                          value={Math.round((rates?.returnRate ?? 0) * 1000) / 10}
+                          onChange={(e) =>
+                            updateCityCategoryValue("returnRate", category, (parseFloat(e.target.value) || 0) / 100)
+                          }
+                          className="w-20 rounded border border-navy-600 bg-navy-900 px-1.5 py-0.5 text-navy-100"
+                        />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <input
+                          type="number"
+                          min={0}
+                          step={10}
+                          value={rates?.stationFeeSilverPer100Nutrition ?? 0}
+                          onChange={(e) =>
+                            updateCityCategoryValue(
+                              "stationFeeSilverPer100Nutrition",
+                              category,
+                              parseFloat(e.target.value) || 0,
+                            )
+                          }
+                          className="w-24 rounded border border-navy-600 bg-navy-900 px-1.5 py-0.5 text-navy-100"
+                        />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <input
+                          type="checkbox"
+                          checked={config.useFocus[category]}
+                          onChange={() => toggleCategoryFocus(category)}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
           <p className="mt-2 text-xs text-navy-400">
-            Comme pour le Calculateur d&apos;artisanat, ces taux se lisent directement en jeu — aucune formule
-            fiable ne relie le niveau de spécialisation au taux de retour ou au coût en Focus.
+            Valeurs pour {config.simulationCity} — changez la ville de simulation ci-dessus pour éditer une
+            autre ville, chacune a ses propres valeurs. Le taux de retour et l&apos;argent par 100 Nutrition se
+            lisent directement en jeu (fenêtre de fabrication / survol de la station) ; le frais de station
+            réel = valeur de l&apos;objet fabriqué × 0,1125 / 100 × ce taux.
           </p>
         </details>
 

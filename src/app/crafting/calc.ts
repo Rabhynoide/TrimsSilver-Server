@@ -10,6 +10,11 @@ export type CraftRecipe = {
 export type CraftItem = {
   uniqueName: string;
   specAchievementId: string | null;
+  // The real Albion crafting building this item is made at (Warrior's
+  // Forge, Hunter's Lodge, Mage's Tower, Toolmaker, or Workbench) —
+  // added for Craft Finder's per-city, per-workshop Return
+  // Rate/station-fee config; unused by this page's own calc.
+  workshop: string;
   recipes: CraftRecipe[];
 };
 

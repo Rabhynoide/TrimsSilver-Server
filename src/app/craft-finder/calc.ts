@@ -3,12 +3,12 @@
 // crafting/calc.ts). Two new pieces neither of those needed:
 //
 // 1. A recursive make-or-buy evaluator that walks resource-catalog.json's
-//    refining/transmutation chain down to a raw, unrefined resource,
-//    memoized per resource uniqueName (a resource's own uniqueName already
-//    fully encodes its enchant level — "T4_METALBAR_LEVEL1" — unlike
-//    equipment, where the same base uniqueName is shared across enchants 0-4
-//    via separate recipe entries; so only equipment needs an explicit
-//    (uniqueName, enchant) pair, resources don't).
+//    refining chain down to a raw, unrefined resource, memoized per resource
+//    uniqueName (a resource's own uniqueName already fully encodes its
+//    enchant level — "T4_METALBAR_LEVEL1" — unlike equipment, where the
+//    same base uniqueName is shared across enchants 0-4 via separate recipe
+//    entries; so only equipment needs an explicit (uniqueName, enchant)
+//    pair, resources don't).
 // 2. A liquidity/sale-rate signal per item (quality 1 only — Craft Finder's
 //    own scope, per the user).
 //
@@ -17,11 +17,28 @@
 // journal-constants.ts's resourceMarketId() for addressing resource-catalog
 // rows against AODP — both already solve exactly this problem, no need to
 // re-derive either convention here.
+//
+// Station fee formula: confirmed against Albion's official "Usage Fee and
+// Crafting Changes" patch notes (Lands Awakened update) — a crafting
+// station's fee is `(Item Value × 0.1125 / 100) × (silver the station
+// charges per 100 Nutrition)`. The per-100-Nutrition rate is a live value
+// the station owner sets (read manually off the in-game station UI, per
+// (city, category) — see types.ts's CraftFinderConfig.cityCategoryConfig),
+// not a fixed game constant. Item Value is a real stored field for
+// resources (resource-catalog.json's own `itemValue`) but NOT stored for
+// equipment — the wiki documents it as derived from the recipe's own
+// resources (`Item Value = Σ resource.itemValue × count`), which this file
+// computes directly from real data rather than reconstructing the wiki's
+// Base/Artifact/Shapeshifter formula (that formula's Artifact and
+// Shapeshifter multipliers are deliberately NOT applied — a documented,
+// narrow edge case for the rare recipes that use artifact materials or
+// shapeshifter weapons, not the common case).
 
 import { craftItemId, type CraftItem, type CraftRecipe } from "../crafting/calc";
 import { resourceMarketId } from "@/data/journal-constants";
 import {
   minSaleRateForTier,
+  NUTRITION_COST_PER_ITEM_VALUE,
   type CraftFinderNodeCategory,
 } from "@/data/craft-finder-constants";
 
@@ -36,6 +53,7 @@ export type ResourceRecipe = {
   category: string;
   tier: number;
   enchant: number;
+  itemValue: number;
   options: ResourceRecipeOption[];
 };
 
@@ -54,7 +72,9 @@ export type EvalContext = {
   // tax buyers, same convention as every other calculator here).
   marketOf: (marketId: string) => MarketSnapshot;
   returnRateFor: (category: CraftFinderNodeCategory) => number;
-  stationFeeRateFor: (category: CraftFinderNodeCategory) => number;
+  // Silver the simulation city's station charges per 100 Nutrition, for
+  // this category — see this file's header comment for the formula.
+  nutritionFeeRateFor: (category: CraftFinderNodeCategory) => number;
   useFocusFor: (category: CraftFinderNodeCategory) => boolean;
   minSaleRatePerDay: number;
   maxDepth: number;
@@ -66,6 +86,19 @@ function clamp01(value: number): number {
 
 function netUnits(count: number, returnRate: number): number {
   return count * (1 - clamp01(returnRate));
+}
+
+// A resource's own stored Item Value (0 for anything not in the resource
+// catalog — e.g. a name that's actually an equipment uniqueName, which is
+// never looked up this way since equipment's Item Value is always derived
+// from its recipe instead, see equipmentItemValue below).
+function itemValueOf(ctx: EvalContext, uniqueName: string): number {
+  return ctx.resourceByUniqueName.get(uniqueName)?.itemValue ?? 0;
+}
+
+function stationFeeFor(itemValue: number, category: CraftFinderNodeCategory, ctx: EvalContext): number {
+  const nutritionCost = itemValue * NUTRITION_COST_PER_ITEM_VALUE;
+  return (nutritionCost / 100) * Math.max(0, ctx.nutritionFeeRateFor(category));
 }
 
 export type ResourceChildLine = {
@@ -82,7 +115,7 @@ export type ResourceCraftOption = {
   silver: number;
   focusCost: number;
   category: CraftFinderNodeCategory;
-  stationFeeRate: number;
+  itemValue: number;
   stationFeeAmount: number;
   resourceCost: number;
   totalCost: number;
@@ -112,7 +145,9 @@ export type ResourceTreeNode = {
 // — see build-resource-catalog.mjs). Memoized per uniqueName since the same
 // resource (e.g. a T4 metal bar) is very often needed by several sibling
 // branches of one item's tree, or across different items entirely within one
-// ranking pass.
+// ranking pass. Raw resources (ore/wood/hide/fiber/rock) always have empty
+// `options` (transmutation isn't modeled, see build-resource-catalog.mjs),
+// so they always resolve as pure buy-only leaves here.
 export function evaluateResourceNode(
   uniqueName: string,
   ctx: EvalContext,
@@ -152,10 +187,13 @@ export function evaluateResourceNode(
   memo.set(uniqueName, placeholder);
 
   let craftOptions: ResourceCraftOption[] = [];
-  if (entry && depth < ctx.maxDepth) {
+  if (entry && entry.options.length > 0 && depth < ctx.maxDepth) {
     const category = entry.category as CraftFinderNodeCategory;
     const returnRate = ctx.returnRateFor(category);
-    const stationFeeRate = ctx.stationFeeRateFor(category);
+    // Item Value (and so the station fee it drives) depends on which item is
+    // being produced, not on which recipe option makes it — computed once
+    // per node, reused by every option.
+    const stationFeeAmount = stationFeeFor(entry.itemValue, category, ctx);
 
     craftOptions = entry.options.map((option, optionIndex) => {
       const children: ResourceChildLine[] = option.resources.map((r) => {
@@ -171,14 +209,13 @@ export function evaluateResourceNode(
         };
       });
       const resourceCost = children.reduce((sum, c) => sum + (c.lineCost ?? 0), 0);
-      const stationFeeAmount = resourceCost * Math.max(0, stationFeeRate);
       const totalCost = resourceCost + stationFeeAmount + option.silver;
       return {
         optionIndex,
         silver: option.silver,
         focusCost: option.focusCost,
         category,
-        stationFeeRate,
+        itemValue: entry.itemValue,
         stationFeeAmount,
         resourceCost,
         totalCost,
@@ -225,9 +262,10 @@ export function evaluateResourceNode(
 export type EquipmentTreeResult = {
   uniqueName: string;
   enchant: number;
+  workshop: string;
   focusCostPerCraft: number;
   silverFeePerCraft: number;
-  stationFeeRate: number;
+  itemValue: number;
   stationFeeAmount: number;
   resourceCost: number;
   craftCost: number;
@@ -251,8 +289,15 @@ export function evaluateEquipmentCraft(
   ctx: EvalContext,
   memo: Map<string, ResourceTreeNode>,
 ): EquipmentTreeResult {
-  const returnRate = ctx.returnRateFor("equipment");
-  const stationFeeRate = ctx.stationFeeRateFor("equipment");
+  const workshop = item.workshop as CraftFinderNodeCategory;
+  const returnRate = ctx.returnRateFor(workshop);
+
+  // Item Value isn't stored for equipment — derived from the recipe's own
+  // resources (real raw counts, not Return-Rate-adjusted net units: Item
+  // Value is a fixed recipe property, unrelated to how much the player
+  // actually ends up paying for after a lucky/unlucky return).
+  const itemValue = recipe.resources.reduce((sum, r) => sum + r.count * itemValueOf(ctx, r.uniqueName), 0);
+  const stationFeeAmount = stationFeeFor(itemValue, workshop, ctx);
 
   const children: ResourceChildLine[] = recipe.resources.map((r) => {
     const node = evaluateResourceNode(r.uniqueName, ctx, memo, 1);
@@ -269,15 +314,15 @@ export function evaluateEquipmentCraft(
 
   const missingPrices = children.filter((c) => c.lineCost == null).map((c) => c.uniqueName);
   const resourceCost = children.reduce((sum, c) => sum + (c.lineCost ?? 0), 0);
-  const stationFeeAmount = resourceCost * Math.max(0, stationFeeRate);
   const craftCost = resourceCost + stationFeeAmount + recipe.silver;
 
   return {
     uniqueName: item.uniqueName,
     enchant: recipe.enchant,
+    workshop,
     focusCostPerCraft: recipe.focusCost,
     silverFeePerCraft: recipe.silver,
-    stationFeeRate,
+    itemValue,
     stationFeeAmount,
     resourceCost,
     craftCost,
@@ -292,7 +337,7 @@ export function evaluateEquipmentCraft(
 // exactly like the single global useFocus toggle in /crafting, just applied
 // per node's own category instead of uniformly.
 export function totalFocusCost(craft: EquipmentTreeResult, ctx: EvalContext): number {
-  let total = ctx.useFocusFor("equipment") ? craft.focusCostPerCraft : 0;
+  let total = ctx.useFocusFor(craft.workshop as CraftFinderNodeCategory) ? craft.focusCostPerCraft : 0;
   function visit(node: ResourceTreeNode) {
     if (node.chosen !== "craft" || !node.bestCraftOption) return;
     const option = node.bestCraftOption;

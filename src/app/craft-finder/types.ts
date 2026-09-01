@@ -1,4 +1,5 @@
 import { DEFAULT_SALES_TAX, DEFAULT_SETUP_FEE } from "@/data/market-constants";
+import { CITIES } from "../market-prices/types";
 import {
   CRAFT_FINDER_CACHED_ENCHANT,
   CRAFT_FINDER_NODE_CATEGORIES,
@@ -17,11 +18,24 @@ export const CRAFT_FINDER_REGION = "Europe" as const;
 // today, the same documented gap as /crafting, server issue #11).
 export type PriceMode = "current" | "average" | "manual";
 
+// One Return Rate + station-fee-rate slot per (city, node category) pair —
+// unlike the Focus toggle below, these genuinely vary by city (a city's
+// crafting-station specialization bonus, and its stations' own posted
+// Nutrition Cost rate, are both per-city live values). stationFeeSilverPer100Nutrition
+// is silver per 100 Nutrition, read directly off the station's UI in-game —
+// see craft-finder-constants.ts's NUTRITION_COST_PER_ITEM_VALUE for how
+// that combines with an item's own Item Value into an actual silver fee.
+export type CityCategoryRates = {
+  returnRate: number;
+  stationFeeSilverPer100Nutrition: number;
+};
+
 export type CraftFinderConfig = {
-  // The single city where crafting/refining is simulated — taxes/fees and
-  // the "craft" side of every make-or-buy comparison all use this one city.
-  // Buying always compares all 8 cities regardless of this setting (see
-  // calc.ts's evaluateResourceNode, which is handed already-cheapest prices).
+  // The single city where crafting/refining is simulated — this is also
+  // which row of cityCategoryConfig below is read for every node in the
+  // tree. Buying always compares all 8 cities regardless of this setting
+  // (see calc.ts's evaluateResourceNode, which is handed already-cheapest
+  // prices).
   simulationCity: string;
   premium: boolean;
   priceMode: PriceMode;
@@ -32,8 +46,7 @@ export type CraftFinderConfig = {
   // live-proxied on demand (see craft-finder-constants.ts).
   enchants: number[];
   minSaleRatePerDay: number;
-  returnRates: Record<CraftFinderNodeCategory, number>;
-  stationFeeRates: Record<CraftFinderNodeCategory, number>;
+  cityCategoryConfig: Record<string, Record<CraftFinderNodeCategory, CityCategoryRates>>;
   useFocus: Record<CraftFinderNodeCategory, boolean>;
   // Filters for the ranking table.
   tierMin: number;
@@ -53,9 +66,17 @@ export type CraftFinderConfig = {
   selectedEnchant: number;
 };
 
-function zeroPerCategory(): Record<CraftFinderNodeCategory, number> {
-  const out = {} as Record<CraftFinderNodeCategory, number>;
-  for (const category of CRAFT_FINDER_NODE_CATEGORIES) out[category] = 0;
+function zeroRatesPerCategory(): Record<CraftFinderNodeCategory, CityCategoryRates> {
+  const out = {} as Record<CraftFinderNodeCategory, CityCategoryRates>;
+  for (const category of CRAFT_FINDER_NODE_CATEGORIES) {
+    out[category] = { returnRate: 0, stationFeeSilverPer100Nutrition: 0 };
+  }
+  return out;
+}
+
+function defaultCityCategoryConfig(): Record<string, Record<CraftFinderNodeCategory, CityCategoryRates>> {
+  const out: Record<string, Record<CraftFinderNodeCategory, CityCategoryRates>> = {};
+  for (const city of CITIES) out[city] = zeroRatesPerCategory();
   return out;
 }
 
@@ -73,8 +94,7 @@ export function defaultCraftFinderConfig(): CraftFinderConfig {
     averageDays: 7,
     enchants: [CRAFT_FINDER_CACHED_ENCHANT],
     minSaleRatePerDay: DEFAULT_MIN_SALE_RATE_PER_DAY,
-    returnRates: zeroPerCategory(),
-    stationFeeRates: zeroPerCategory(),
+    cityCategoryConfig: defaultCityCategoryConfig(),
     useFocus: truePerCategory(),
     tierMin: 1,
     tierMax: 8,
