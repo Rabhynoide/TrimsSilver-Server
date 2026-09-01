@@ -28,6 +28,18 @@ export type FetchMarketPricesParams = {
   qualities: string;
   region: string;
   averageDays?: number;
+  // Overrides MAX_URL_LENGTH for this call only. Added for Craft Finder,
+  // which prices a far larger catalog than any other feature (768 equipment
+  // + ~230 resources) — confirmed live against production that its
+  // ~90-120-item chunks at the default 2000-char budget can get a 403 from
+  // BunkerWeb's WAF (a content/complexity-based block, not the URL-length
+  // ceiling the default budget was originally tuned against — bisecting a
+  // failing batch in half made it succeed, and failures weren't simply the
+  // longest or highest-item-count batches, ruling out a clean size
+  // threshold). A smaller budget means smaller, simpler query strings, which
+  // empirically avoided the block in the same live test. Every other caller
+  // omits this and keeps the existing default.
+  maxUrlLength?: number;
 };
 
 function buildSearchParams(items: string[], params: FetchMarketPricesParams): URLSearchParams {
@@ -49,7 +61,7 @@ function buildSearchParams(items: string[], params: FetchMarketPricesParams): UR
 // chars for the longest journal/equipment ids).
 function chunkItemsByUrlLength(items: string[], params: FetchMarketPricesParams): string[][] {
   const overhead = `/api/market/prices?${buildSearchParams([], params).toString()}`.length;
-  const budget = MAX_URL_LENGTH - overhead;
+  const budget = (params.maxUrlLength ?? MAX_URL_LENGTH) - overhead;
 
   const batches: string[][] = [];
   let current: string[] = [];
@@ -69,6 +81,20 @@ function chunkItemsByUrlLength(items: string[], params: FetchMarketPricesParams)
   return batches;
 }
 
+// A 403 here is BunkerWeb's own WAF blocking the request before it ever
+// reaches this app — confirmed live against production: it's NOT a clean
+// URL-length or item-count threshold (a failing ~90-item batch's own two
+// halves both succeed individually; a smaller ~1000-char budget still hit
+// occasional 403s; the same exact 6-item subset succeeds in isolation but
+// not always once combined with enough other items). This is consistent
+// with a cumulative content-anomaly score (ModSecurity/CRS-style) rather
+// than a single deterministic trigger, so no fixed chunk size can guarantee
+// avoiding it. What *did* reliably work in every live test: splitting a
+// blocked batch in half and retrying each half independently. Below this
+// floor, a batch that still gets blocked can't usefully be split further —
+// surface a clear error instead of recursing forever.
+const MIN_SPLIT_BATCH_SIZE = 4;
+
 async function fetchBatch(batch: string[], params: FetchMarketPricesParams): Promise<PriceRow[]> {
   const searchParams = buildSearchParams(batch, params);
 
@@ -83,6 +109,16 @@ async function fetchBatch(batch: string[], params: FetchMarketPricesParams): Pro
       // front of the app, not our own route handler), so don't hand it to
       // readJsonResponse — throw a clear message directly instead.
       throw new Error("Limite de requêtes atteinte auprès de la source de prix après plusieurs tentatives — réessayez dans un instant.");
+    }
+    if (res.status === 403) {
+      if (batch.length > MIN_SPLIT_BATCH_SIZE) {
+        const mid = Math.ceil(batch.length / 2);
+        const first = await fetchBatch(batch.slice(0, mid), params);
+        await sleep(CHUNK_DELAY_MS);
+        const second = await fetchBatch(batch.slice(mid), params);
+        return [...first, ...second];
+      }
+      throw new Error("Requête bloquée par le pare-feu du site, même après subdivision — réessayez plus tard.");
     }
     const data = await readJsonResponse<{ prices?: PriceRow[]; error?: string; detail?: string }>(res);
     if (!res.ok) {

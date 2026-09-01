@@ -130,6 +130,11 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
         qualities: "1,2,3,4,5",
         region: CRAFT_FINDER_REGION,
         averageDays: config.averageDays,
+        // Smaller chunks reduce (but don't guarantee, see
+        // marketPricesClient.ts's own comment) how often a chunk trips
+        // BunkerWeb's content-based WAF block — the automatic split-on-403
+        // retry there is what actually guarantees correctness either way.
+        maxUrlLength: 1200,
       });
       setPrices(results);
     } catch (err) {
