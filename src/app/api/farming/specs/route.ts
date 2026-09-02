@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { requireFullAccess } from "@/lib/access";
 
 // Farming Destiny Board spec levels (Crop Farmer, Animal Breeder, Herbalist +
 // their per-item sub-specs), read from data the desktop client already
@@ -8,10 +8,9 @@ import { prisma } from "@/lib/prisma";
 // AchievementSnapshot/AchievementEntry in prisma/schema.prisma — no new
 // ingest work needed for this). A user can have multiple synced characters.
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-  }
+  const access = await requireFullAccess();
+  if (!access.ok) return access.response;
+  const { session } = access;
 
   const snapshots = await prisma.achievementSnapshot.findMany({
     where: { submittedById: session.user.id },

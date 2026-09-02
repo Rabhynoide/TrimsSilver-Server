@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { requireFullAccess } from "@/lib/access";
 
 // Combat specialization levels, read from data the desktop client already
 // uploads via FullAchievementInfo -> POST be/achievements (see
@@ -10,10 +10,9 @@ import { prisma } from "@/lib/prisma";
 // *specachievement* field in the whole file — see
 // scripts/build-crafting-catalog.mjs), not a guess.
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-  }
+  const access = await requireFullAccess();
+  if (!access.ok) return access.response;
+  const { session } = access;
 
   const snapshots = await prisma.achievementSnapshot.findMany({
     where: { submittedById: session.user.id },

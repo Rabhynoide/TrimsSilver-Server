@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { requireFullAccess } from "@/lib/access";
 
 // Only ever the signed-in user's own scanned MarketOrder rows (server issue:
 // Public Flips / cross-uploader aggregation via contributeToPublic is
@@ -16,10 +16,9 @@ import { prisma } from "@/lib/prisma";
 const MAX_ORDER_AGE_MS = 24 * 60 * 60 * 1000;
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-  }
+  const access = await requireFullAccess();
+  if (!access.ok) return access.response;
+  const { session } = access;
 
   const orders = await prisma.marketOrder.findMany({
     where: {

@@ -20,6 +20,16 @@ model User {
   accounts      Account[]
   sessions      Session[]
 
+  // Site access control (server issue: "who can use this site" — new
+  // Discord sign-ins default to false/false, only seeing "/" and
+  // "/market-prices"; an admin grants hasFullAccess per account via
+  // /admin/users). isAdmin is never settable through the app itself — the
+  // first admin is bootstrapped by listing their Discord account id in the
+  // ADMIN_DISCORD_IDS env var, auto-applied on sign-in (see src/auth.ts);
+  // an existing admin can promote further admins from the /admin/users UI.
+  isAdmin       Boolean @default(false)
+  hasFullAccess Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

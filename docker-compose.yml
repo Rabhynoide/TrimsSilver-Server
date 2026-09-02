@@ -23,6 +23,7 @@ services:
       AUTH_URL: ${AUTH_URL:?AUTH_URL is required}
       AUTH_DISCORD_ID: ${AUTH_DISCORD_ID:?AUTH_DISCORD_ID is required}
       AUTH_DISCORD_SECRET: ${AUTH_DISCORD_SECRET:?AUTH_DISCORD_SECRET is required}
+      ADMIN_DISCORD_IDS: ${ADMIN_DISCORD_IDS:-}
     depends_on:
       db:
         condition: service_healthy

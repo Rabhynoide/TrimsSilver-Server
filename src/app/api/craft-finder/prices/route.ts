@@ -7,6 +7,7 @@ import { resourceMarketId } from "@/data/journal-constants";
 import { CITIES } from "@/app/market-prices/types";
 import { CRAFT_FINDER_REGION } from "@/app/craft-finder/types";
 import { getMarketPrices } from "@/lib/marketPricesService";
+import { requireFullAccess } from "@/lib/access";
 
 type EquipmentCatalogRow = { uniqueName: string; recipes: { enchant: number }[] };
 type ResourceCatalogRow = { uniqueName: string };
@@ -40,6 +41,9 @@ function parseEnchants(raw: string | null): number[] {
 // no HTTP hop, so the heavy AODP/cache work never touches BunkerWeb's
 // client-facing WAF at all, only this one small request does.
 export async function GET(request: NextRequest) {
+  const access = await requireFullAccess();
+  if (!access.ok) return access.response;
+
   const params = request.nextUrl.searchParams;
   const enchants = parseEnchants(params.get("enchants") ?? params.get("enchant"));
 

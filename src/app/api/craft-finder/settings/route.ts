@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { requireFullAccess } from "@/lib/access";
 
 // Single saved Craft Finder profile per user (simulation city, Premium,
 // price mode, liquidity threshold, per-category Return Rate/station
 // fee/Focus, filters, manual prices). Browser-only, gated on the Auth.js
 // session cookie. Mirrors /api/crafting/settings exactly.
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-  }
+  const access = await requireFullAccess();
+  if (!access.ok) return access.response;
+  const { session } = access;
 
   const settings = await prisma.craftFinderSettings.findUnique({
     where: { userId: session.user.id },
@@ -20,10 +19,9 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-  }
+  const access = await requireFullAccess();
+  if (!access.ok) return access.response;
+  const { session } = access;
 
   const body = await request.json().catch(() => null);
   const config = body?.config;

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { requireFullAccess } from "@/lib/access";
 
 const MAX_ITEMS = 200;
 
@@ -10,10 +10,9 @@ const MAX_ITEMS = 200;
 // alongside the public AODP proxy. Ownership-scoped: only ever reads the
 // caller's own submittedById rows, never another user's.
 export async function GET(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-  }
+  const access = await requireFullAccess();
+  if (!access.ok) return access.response;
+  const { session } = access;
 
   const { searchParams } = new URL(request.url);
   const serverIdParam = searchParams.get("serverId");
