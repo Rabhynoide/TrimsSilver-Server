@@ -164,8 +164,12 @@ export default function RankingTable({
                   </td>
                   <td className="px-2 py-1.5 text-center text-sm text-navy-300">{row.enchant}</td>
                   <td className="px-2 py-1.5 text-right text-sm text-navy-300">{money(row.craft.craftCost)}</td>
-                  <td className="px-2 py-1.5 text-right text-sm text-navy-300">
+                  <td
+                    className="px-2 py-1.5 text-right text-sm text-navy-300"
+                    title={row.sellPriceCity ? `Vente à ${row.sellPriceCity}` : undefined}
+                  >
                     {row.sellPriceNet != null ? money(row.sellPriceNet) : "-"}
+                    {row.sellPriceCity && <span className="ml-1 text-[10px] text-navy-500">({row.sellPriceCity})</span>}
                   </td>
                   <td
                     className={`px-2 py-1.5 text-right text-sm font-semibold ${

@@ -23,10 +23,12 @@ export type PriceMode = "current" | "average" | "manual";
 // to be sourced from — "cheapest" is the original behavior (compares all 8
 // cities, see calc.ts's evaluateResourceNode), "simulationCity" restricts
 // every buy to simulationCity's own market only, for players who don't want
-// to model hauling resources in from elsewhere. Only affects the buy side —
-// the sell side (outputPriceOf) always compares all 8 cities regardless,
-// since that's a separate, unrelated question (where you list the finished
-// item), not asked to change here.
+// to model hauling resources in from elsewhere. Reused as-is for the sell
+// side too (CraftFinderConfig.saleCityMode below) — same two options, same
+// meaning, just applied to where the finished item is listed instead of
+// where the resources are bought; kept as one shared type since both are
+// genuinely the same choice ("this city only" vs "best of all 8"), not two
+// different concepts that happen to look alike.
 export type ResourceSourceMode = "cheapest" | "simulationCity";
 
 // One Return Rate + station-fee-rate slot per (city, node category) pair —
@@ -44,13 +46,17 @@ export type CityCategoryRates = {
 export type CraftFinderConfig = {
   // The single city where crafting/refining is simulated — this is also
   // which row of cityCategoryConfig below is read for every node in the
-  // tree. Buying always compares all 8 cities regardless of this setting
-  // (see calc.ts's evaluateResourceNode, which is handed already-cheapest
-  // prices).
+  // tree. Buying/selling only follow this city when resourceSourceMode /
+  // saleCityMode below are set to "simulationCity" — by default both stay
+  // "cheapest" (compare all 8 cities), same as before either toggle existed.
   simulationCity: string;
   premium: boolean;
   priceMode: PriceMode;
   resourceSourceMode: ResourceSourceMode;
+  // Where the finished item is assumed to be sold — independent of
+  // resourceSourceMode above (you might buy locally but still haul the
+  // finished item to whichever city pays best, or vice versa).
+  saleCityMode: ResourceSourceMode;
   averageDays: number;
   // Which enchant levels to rank, simultaneously — each produces its own
   // separate rows, never aggregated together (same "never aggregate"
@@ -120,6 +126,7 @@ export function defaultCraftFinderConfig(): CraftFinderConfig {
     premium: true,
     priceMode: "current",
     resourceSourceMode: "cheapest",
+    saleCityMode: "cheapest",
     averageDays: 7,
     enchants: [CRAFT_FINDER_CACHED_ENCHANT],
     minSaleRatePerDay: DEFAULT_MIN_SALE_RATE_PER_DAY,

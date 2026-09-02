@@ -251,7 +251,17 @@ export default function MakeOrBuyTree({
         </div>
         <div>
           <p className="text-xs uppercase text-navy-500">Vente nette</p>
-          <p className="text-navy-100">{result.sellPriceNet != null ? money(result.sellPriceNet) : "-"}</p>
+          <p className="text-navy-100">
+            {result.sellPriceNet != null ? money(result.sellPriceNet) : "-"}
+            {result.sellPriceCity && (
+              <span
+                title="Ville d'où provient ce prix de vente"
+                className="ml-1 rounded bg-navy-700 px-1 text-[10px] text-navy-300"
+              >
+                {result.sellPriceCity}
+              </span>
+            )}
+          </p>
         </div>
         <div>
           <p className="text-xs uppercase text-navy-500">Marge</p>

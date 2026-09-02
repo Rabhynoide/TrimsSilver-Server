@@ -425,6 +425,7 @@ export type FinalItemResult = {
   sellPriceGross: number | null;
   sellPriceNet: number | null;
   sellPriceAge: string | null;
+  sellPriceCity: string | null;
   saleRate: number | null;
   liquidityOk: boolean | null;
   marginNet: number | null;
@@ -485,6 +486,7 @@ export function evaluateFinalItem(
     sellPriceGross,
     sellPriceNet,
     sellPriceAge: output.priceAge,
+    sellPriceCity: output.city,
     saleRate: output.avgAmount,
     liquidityOk,
     marginNet,

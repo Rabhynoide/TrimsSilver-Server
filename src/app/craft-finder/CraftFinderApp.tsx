@@ -42,10 +42,43 @@ const PRICE_MODE_LABELS: Record<PriceMode, string> = {
   manual: "Manuel",
 };
 
-const RESOURCE_SOURCE_MODE_LABELS: Record<ResourceSourceMode, string> = {
-  simulationCity: "Ville de fabrication uniquement",
-  cheapest: "N'importe où (moins cher)",
-};
+const CHEAPEST_MODE_LABEL = "N'importe où (moins cher)";
+
+// Shared two-button toggle for the two independent "this city only vs
+// cheapest of all 8" choices (resourceSourceMode for buying, saleCityMode
+// for selling — see types.ts's ResourceSourceMode) — same shape, same
+// styling, just a different config field and label behind each.
+function CityModeToggle({
+  value,
+  onChange,
+  simulationCity,
+  cityLabel,
+}: {
+  value: ResourceSourceMode;
+  onChange: (mode: ResourceSourceMode) => void;
+  simulationCity: string;
+  cityLabel: string;
+}) {
+  return (
+    <div className="flex gap-2">
+      {(["simulationCity", "cheapest"] as ResourceSourceMode[]).map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          onClick={() => onChange(mode)}
+          aria-pressed={value === mode}
+          className={`rounded border px-2 py-1 text-xs ${
+            value === mode
+              ? "border-gold-500 bg-gold-500 text-navy-950"
+              : "border-navy-600 text-navy-200 hover:bg-navy-700"
+          }`}
+        >
+          {mode === "simulationCity" ? `${cityLabel} (${simulationCity})` : CHEAPEST_MODE_LABEL}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) {
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
@@ -183,10 +216,15 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
   }, [priceRowsById, config.priceMode, config.manualPrices, config.resourceSourceMode, config.simulationCity]);
 
   const outputPriceOf = useMemo(() => {
+    const restrictToCity = config.saleCityMode === "simulationCity" ? config.simulationCity : undefined;
     return (uniqueName: string, enchant: number): MarketSnapshot =>
-      bestAcrossCities(craftItemId(uniqueName, enchant), (a, b) => (a.sellPriceMin >= b.sellPriceMin ? a : b));
+      bestAcrossCities(
+        craftItemId(uniqueName, enchant),
+        (a, b) => (a.sellPriceMin >= b.sellPriceMin ? a : b),
+        restrictToCity,
+      );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [priceRowsById, config.priceMode, config.manualPrices]);
+  }, [priceRowsById, config.priceMode, config.manualPrices, config.saleCityMode, config.simulationCity]);
 
   function netSellRateOf(gross: number): number {
     return gross * (1 - salesTaxRateFor(config.premium) - setupFeeRateFor(config.premium));
@@ -251,6 +289,7 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
     config.onlyLiquid,
     config.minMarginPct,
     ctx,
+    outputPriceOf,
     config.premium,
   ]);
 
@@ -414,25 +453,21 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
           </label>
           <fieldset className="flex flex-col gap-1 text-sm text-navy-300">
             <legend>Ressources en entrée depuis</legend>
-            <div className="flex gap-2">
-              {(["simulationCity", "cheapest"] as ResourceSourceMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setConfig((c) => ({ ...c, resourceSourceMode: mode }))}
-                  aria-pressed={config.resourceSourceMode === mode}
-                  className={`rounded border px-2 py-1 text-xs ${
-                    config.resourceSourceMode === mode
-                      ? "border-gold-500 bg-gold-500 text-navy-950"
-                      : "border-navy-600 text-navy-200 hover:bg-navy-700"
-                  }`}
-                >
-                  {mode === "simulationCity"
-                    ? `Ville de fabrication (${config.simulationCity})`
-                    : RESOURCE_SOURCE_MODE_LABELS[mode]}
-                </button>
-              ))}
-            </div>
+            <CityModeToggle
+              value={config.resourceSourceMode}
+              onChange={(mode) => setConfig((c) => ({ ...c, resourceSourceMode: mode }))}
+              simulationCity={config.simulationCity}
+              cityLabel="Ville de fabrication"
+            />
+          </fieldset>
+          <fieldset className="flex flex-col gap-1 text-sm text-navy-300">
+            <legend>Vente de l&apos;objet fini vers</legend>
+            <CityModeToggle
+              value={config.saleCityMode}
+              onChange={(mode) => setConfig((c) => ({ ...c, saleCityMode: mode }))}
+              simulationCity={config.simulationCity}
+              cityLabel="Ville de fabrication"
+            />
           </fieldset>
           {config.priceMode === "average" && (
             <label className="flex flex-col gap-1 text-sm text-navy-300">
@@ -521,13 +556,15 @@ export default function CraftFinderApp({ isSignedIn }: { isSignedIn: boolean }) 
 
         <p className="mt-3 text-xs text-navy-400">
           Taxe de vente {(salesTaxRateFor(config.premium) * 100).toFixed(2)}% / Frais de placement{" "}
-          {(setupFeeRateFor(config.premium) * 100).toFixed(2)}% (selon le statut Premium), appliqués au
-          meilleur prix de vente parmi les 8 villes.{" "}
+          {(setupFeeRateFor(config.premium) * 100).toFixed(2)}%, selon le statut Premium.{" "}
           {config.resourceSourceMode === "simulationCity"
-            ? `L'achat des matières est restreint au marché de ${config.simulationCity} (voir la ville
-              indiquée à côté de chaque prix d'achat dans l'arbre acheter/fabriquer).`
-            : "L'achat des matières compare aussi les 8 villes (voir la ville indiquée à côté de chaque prix d'achat dans l'arbre acheter/fabriquer)."}{" "}
-          Transport et profondeur du carnet d&apos;ordres non modélisés (v1) — voir le taux de vente pour le
+            ? `L'achat des matières est restreint au marché de ${config.simulationCity}`
+            : "L'achat des matières compare les 8 villes"}{" "}
+          (voir la ville indiquée à côté de chaque prix d&apos;achat dans l&apos;arbre acheter/fabriquer) ;{" "}
+          {config.saleCityMode === "simulationCity"
+            ? `la vente de l'objet fini est restreinte au marché de ${config.simulationCity}`
+            : "la vente de l'objet fini compare aussi les 8 villes"}{" "}
+          (voir la ville indiquée à côté de « Vente nette »). Transport et profondeur du carnet d&apos;ordres non modélisés (v1) — voir le taux de vente pour le
           signal de liquidité. &quot;Volume max/jour&quot; = 25% des ventes/jour (règle empirique pour éviter
           de saturer vos propres annonces et repayer les frais de placement à chaque re-listing) ; &quot;Gain
           estimé/jour&quot; = marge unitaire × ce volume.
