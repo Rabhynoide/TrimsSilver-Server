@@ -1,16 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CatalogItem, SelectedItem } from "./types";
 import { itemId } from "./types";
 import CategoryTree from "./CategoryTree";
+import MultiSelectDropdown from "./MultiSelectDropdown";
 
 const MAX_SELECTED_ITEMS = 100;
 const MAX_SEARCH_RESULTS = 30;
-
-function toggle<T>(set: T[], value: T): T[] {
-  return set.includes(value) ? set.filter((v) => v !== value) : [...set, value];
-}
+const TIER_OPTIONS = Array.from({ length: 8 }, (_, i) => ({ value: i + 1, label: `T${i + 1}` }));
+const ENCHANT_OPTIONS = [0, 1, 2, 3, 4].map((e) => ({ value: e, label: String(e) }));
 
 type Variant = { catalogItem: CatalogItem; enchant: number };
 
@@ -42,6 +41,18 @@ export default function ItemPicker({
   const [tierFilter, setTierFilter] = useState<number[]>([]);
   const [enchantFilter, setEnchantFilter] = useState<number[]>([]);
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
 
   const filteredCatalog = useMemo(() => {
     return catalog.filter((item) => {
@@ -108,53 +119,76 @@ export default function ItemPicker({
         Sélectionner des objets
       </h2>
 
-      <div className="flex flex-wrap gap-4">
+      <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
-          <span className="mb-1 text-xs text-navy-400">Catégories de la boutique</span>
+          <span className="text-xs text-navy-400">Catégories de la boutique</span>
           <CategoryTree catalog={catalog} selected={categoryFilter} onChange={setCategoryFilter} />
         </div>
 
-        <fieldset className="flex flex-col gap-1">
-          <legend className="mb-1 text-xs text-navy-400">Tiers</legend>
-          <div className="flex max-w-56 flex-wrap gap-2 text-navy-200">
-            {Array.from({ length: 8 }, (_, i) => i + 1).map((tier) => (
-              <label key={tier} className="flex items-center gap-1 text-sm">
-                <input
-                  type="checkbox"
-                  checked={tierFilter.includes(tier)}
-                  onChange={() => setTierFilter(toggle(tierFilter, tier))}
-                />
-                T{tier}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-navy-400">Tiers</span>
+          <MultiSelectDropdown label="Tiers" options={TIER_OPTIONS} selected={tierFilter} onChange={setTierFilter} />
+        </div>
 
-        <fieldset className="flex flex-col gap-1">
-          <legend className="mb-1 text-xs text-navy-400">Enchantements</legend>
-          <div className="flex max-w-40 flex-wrap gap-2 text-navy-200">
-            {[0, 1, 2, 3, 4].map((enchant) => (
-              <label key={enchant} className="flex items-center gap-1 text-sm">
-                <input
-                  type="checkbox"
-                  checked={enchantFilter.includes(enchant)}
-                  onChange={() => setEnchantFilter(toggle(enchantFilter, enchant))}
-                />
-                {enchant}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-navy-400">Enchantements</span>
+          <MultiSelectDropdown
+            label="Enchantements"
+            options={ENCHANT_OPTIONS}
+            selected={enchantFilter}
+            onChange={setEnchantFilter}
+          />
+        </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher des objets…"
-          className="min-w-64 rounded border border-navy-600 bg-navy-900 px-3 py-1.5 text-sm text-navy-100 placeholder:text-navy-500"
-        />
+        <div className="relative flex flex-col gap-1" ref={searchContainerRef}>
+          <span className="text-xs text-navy-400">{filteredVariants.length} objets</span>
+          <div className="relative">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onFocus={() => setSearchOpen(true)}
+              placeholder="Rechercher des objets…"
+              className="min-w-64 rounded border border-navy-600 bg-navy-900 px-3 py-1.5 pr-7 text-sm text-navy-100 placeholder:text-navy-500"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Effacer la recherche"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-navy-400 hover:text-navy-100"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {searchOpen && searchResults.length > 0 && (
+            <ul className="absolute top-full z-20 mt-1 max-h-64 w-80 divide-y divide-navy-700 overflow-y-auto rounded border border-navy-600 bg-navy-800 shadow-lg">
+              {searchResults.map((v) => {
+                const id = itemId(variantToSelectedItem(v));
+                const alreadySelected = selectedIds.has(id);
+                return (
+                  <li key={id}>
+                    <button
+                      type="button"
+                      onClick={() => addVariant(v)}
+                      disabled={alreadySelected}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-navy-100 hover:bg-navy-700 disabled:opacity-40"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={variantIconUrl(v)} alt="" className="h-8 w-8" />
+                      <span>
+                        {v.catalogItem.name} [{v.catalogItem.tier}.{v.enchant}]
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
         <button
           type="button"
           onClick={addFiltered}
@@ -179,31 +213,6 @@ export default function ItemPicker({
           Effacer les objets sélectionnés
         </button>
       </div>
-
-      {searchResults.length > 0 && (
-        <ul className="max-h-64 divide-y divide-navy-700 overflow-y-auto rounded border border-navy-600">
-          {searchResults.map((v) => {
-            const id = itemId(variantToSelectedItem(v));
-            const alreadySelected = selectedIds.has(id);
-            return (
-              <li key={id}>
-                <button
-                  type="button"
-                  onClick={() => addVariant(v)}
-                  disabled={alreadySelected}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-navy-100 hover:bg-navy-700 disabled:opacity-40"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={variantIconUrl(v)} alt="" className="h-8 w-8" />
-                  <span>
-                    {v.catalogItem.name} [{v.catalogItem.tier}.{v.enchant}]
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
 
       <div>
         <p className="mb-2 text-sm text-navy-400">
