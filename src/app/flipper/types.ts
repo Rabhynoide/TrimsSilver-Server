@@ -1,6 +1,7 @@
 import type { AodpRegion } from "@/lib/aodp";
 import { REGION_SERVER_ID } from "@/lib/aodp";
 import { DEFAULT_SALES_TAX } from "@/data/market-constants";
+import { CITIES } from "../market-prices/types";
 import type { SelectedItem } from "../market-prices/types";
 
 export { REGION_SERVER_ID };
@@ -21,6 +22,12 @@ export type FlipperConfig = {
   showPublicFlips: boolean;
   publicPriceMaxAgeHours: number;
   selectedItems: SelectedItem[];
+  // Which cities you're actually willing to buy from — restricts the source
+  // (buy) side only, never the destination side, so Black Market always
+  // stays available as a sell target even if deselected here. Defaults to
+  // all 8 (no restriction), same convention as Market Prices' own city
+  // filter (defaultConfig()'s `cities: [...CITIES]`).
+  sourceCities: string[];
 };
 
 export function defaultFlipperConfig(): FlipperConfig {
@@ -36,6 +43,7 @@ export function defaultFlipperConfig(): FlipperConfig {
     showPublicFlips: true,
     publicPriceMaxAgeHours: 24,
     selectedItems: [],
+    sourceCities: [...CITIES],
   };
 }
 

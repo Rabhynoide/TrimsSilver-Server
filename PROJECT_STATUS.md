@@ -557,6 +557,14 @@ Fixed by rebuilding the whole taxonomy against the actual current raw values (ve
 
 **Verified live** in a local dev server (not just build/lint): opening Shop Categories now shows all 16 buckets with counts summing to exactly 4,219 (the full catalog, confirmed by script) instead of 5 buckets; drilling into Weapons shows the same 17 weapon-type subcategories AFM shows (Bow/Crossbow/Axe/.../Shapeshifter Staff); drilling into Swords shows 8 correctly tier-collapsed lines (Adoube-roi, Claymore, Épée large, etc.) instead of one row per tier. `tsc`/lint/`next build` all clean. Not yet redeployed — same pending-Portainer-redeploy situation as everything else recently.
 
+### Flipper: source-city filter added same day
+
+User request: restrict which cities count as a viable buy-from ("source") location, independent of the sell/destination side (still any royal city or Black Market). Added `FlipperConfig.sourceCities: string[]` (defaults to all 8, matching Market Prices' own `cities: [...CITIES]` convention), surfaced as a "Villes sources" toggle-pill row in the shared Settings section (reusing the exact same `CITY_COLORS` pill styling as Market Prices' "Villes" filter), applied to both `findFlips()` (private) and `findPublicFlips()` (public) in `calc.ts`.
+
+Restricts the **offer** (buy) side only — a `RawOrder`/`PriceRow` whose city isn't in the selected set is simply never considered as a source, but nothing changes about which cities are valid destinations. For private flips, an offer whose `locationId` doesn't resolve to a known city (see `market-locations.ts`) is now always excluded as a source once considered, since it can't be matched against a city the user actually selected — a narrower behavior than before for that edge case, judged acceptable since picking real cities to travel to is the whole point of the filter.
+
+Verified live against seeded synthetic `MarketOrder` data (not live market luck — real AODP prices didn't happen to have a testable spread at the moment): two offers for the same item at different cities (Caerleon 1000, Bridgewatch 1050) both flipping profitably to the same Black Market request — deselecting Caerleon correctly removed only the Caerleon→Black Market row, leaving Bridgewatch→Black Market intact and Black Market itself still available as a destination. `tsc`/lint/`next build` all clean. Not yet redeployed.
+
 ## Next steps, in the order they were being tackled
 
 1. **Decide the fate of Portfolio / Legendary marketplace / AFM EMV lookups** — client issue #5, currently disabled via `FeatureFlags.AfmIntegrationEnabled = false`. This is a product decision (retire vs. reintroduce a second Google/Firebase auth flow vs. something else), not something to solve with more code without direction.

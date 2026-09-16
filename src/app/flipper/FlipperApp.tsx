@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CITIES, itemId } from "../market-prices/types";
+import { CITIES, CITY_COLORS, itemId } from "../market-prices/types";
 import type { CatalogItem, PriceRow } from "../market-prices/types";
 import { fetchMarketPrices } from "@/lib/marketPricesClient";
 import ItemPicker from "../market-prices/ItemPicker";
@@ -95,11 +95,21 @@ export default function FlipperApp({ isSignedIn }: { isSignedIn: boolean }) {
   const serverId = REGION_SERVER_ID[config.region];
   const ordersForServer = useMemo(() => orders.filter((o) => o.serverId === serverId), [orders, serverId]);
 
+  function toggleSourceCity(city: string) {
+    setConfig((c) => ({
+      ...c,
+      sourceCities: c.sourceCities.includes(city)
+        ? c.sourceCities.filter((x) => x !== city)
+        : [...c.sourceCities, city],
+    }));
+  }
+
   const privateFlips = useMemo(() => {
     const all = findFlips(ordersForServer, {
       salesTaxRate: salesTaxRateFor(config.premium),
       sellOrderMaxAgeMinutes: config.sellOrderMaxAgeMinutes,
       buyOrderMaxAgeMinutes: config.buyOrderMaxAgeMinutes,
+      sourceCities: config.sourceCities,
     });
     return all.filter((f) => {
       if (f.isBlackMarketFlip && !config.showBlackMarketFlips) return false;
@@ -113,13 +123,21 @@ export default function FlipperApp({ isSignedIn }: { isSignedIn: boolean }) {
     const all = findPublicFlips(publicPrices, {
       salesTaxRate: salesTaxRateFor(config.premium),
       maxPriceAgeHours: config.publicPriceMaxAgeHours,
+      sourceCities: config.sourceCities,
     });
     return all.filter((f) => {
       if (f.isBlackMarketFlip && !config.showBlackMarketFlips) return false;
       if (!f.isBlackMarketFlip && !config.showCityToCityFlips) return false;
       return true;
     });
-  }, [publicPrices, config.premium, config.publicPriceMaxAgeHours, config.showBlackMarketFlips, config.showCityToCityFlips]);
+  }, [
+    publicPrices,
+    config.premium,
+    config.publicPriceMaxAgeHours,
+    config.sourceCities,
+    config.showBlackMarketFlips,
+    config.showCityToCityFlips,
+  ]);
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-8 w-full">
@@ -189,6 +207,32 @@ export default function FlipperApp({ isSignedIn }: { isSignedIn: boolean }) {
           de frais de placement, un flip ne fait qu&apos;honorer des ordres existants, il n&apos;en place jamais de
           nouveaux.
         </p>
+
+        <fieldset className="mt-4 flex flex-wrap gap-2">
+          <legend className="mb-1 w-full text-xs text-navy-400">
+            Villes sources (où vous achetez — la destination reste libre)
+          </legend>
+          {CITIES.map((city) => {
+            const active = config.sourceCities.includes(city);
+            return (
+              <button
+                key={city}
+                type="button"
+                onClick={() => toggleSourceCity(city)}
+                style={
+                  active
+                    ? { backgroundColor: `${CITY_COLORS[city]}33`, borderColor: CITY_COLORS[city] }
+                    : undefined
+                }
+                className={`rounded-full border px-3 py-1 text-sm ${
+                  active ? "text-navy-100" : "border-navy-600 text-navy-400 hover:text-navy-200"
+                }`}
+              >
+                {city}
+              </button>
+            );
+          })}
+        </fieldset>
       </section>
 
       <section className="rounded-lg border border-navy-700 bg-navy-850 p-4">

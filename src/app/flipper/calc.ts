@@ -57,6 +57,13 @@ export type FlipOptions = {
   // minimize false positives from a since-filled or since-cancelled order.
   sellOrderMaxAgeMinutes: number;
   buyOrderMaxAgeMinutes: number;
+  // Cities you're willing to buy from — restricts "offer" (source) orders
+  // only, never "request" (destination) orders, so Black Market/other cities
+  // stay available as sell targets regardless of this list. An offer whose
+  // location doesn't resolve to a known city (see market-locations.ts) is
+  // always excluded as a source once this filter is active, since it can't
+  // be matched against a city the caller actually selected.
+  sourceCities: string[];
   now?: number;
 };
 
@@ -98,6 +105,9 @@ export function findFlips(orders: RawOrder[], opts: FlipOptions): FlipOpportunit
     }
 
     if (o.auctionType === "offer") {
+      const city = resolveLocation(o.locationId).city;
+      if (!city || !opts.sourceCities.includes(city)) continue;
+
       const existing = g.offersByLocation.get(o.locationId);
       if (!existing || o.unitPriceSilver < existing.unitPriceSilver) {
         g.offersByLocation.set(o.locationId, o);
@@ -195,6 +205,9 @@ export type PublicFlipOptions = {
   // separate "still listed" signal, so a much longer default window than the
   // private-order one is appropriate.
   maxPriceAgeHours: number;
+  // Same restriction as FlipOptions.sourceCities — only filters which city's
+  // sell price counts as the buy-from side, never the destination.
+  sourceCities: string[];
   now?: number;
 };
 
@@ -219,6 +232,7 @@ export function findPublicFlips(prices: PriceRow[], opts: PublicFlipOptions): Pu
 
   for (const rows of groups.values()) {
     for (const source of rows) {
+      if (!opts.sourceCities.includes(source.city)) continue;
       if (source.sellPriceMin <= 0) continue;
       const sourceAge = hoursAgo(source.sellPriceMinDate, now);
       if (sourceAge == null || sourceAge > opts.maxPriceAgeHours) continue;
